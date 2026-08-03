@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hr_payroll_ng
+    volumes:
+      - hr_payroll_pg:/var/lib/postgresql/data
+
+volumes:
+  hr_payroll_pg:

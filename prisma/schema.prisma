@@ -1,0 +1,302 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  HR_ADMIN
+  FINANCE
+  EMPLOYEE
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  CONTRACT
+}
+
+enum PayrollRunStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  PAID
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  UNPAID
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statutoryConfig StatutoryConfig?
+  users           User[]
+  employees       Employee[]
+  payrollRuns     PayrollRun[]
+  taxBands        TaxBand[]
+}
+
+model StatutoryConfig {
+  id                    String  @id @default(cuid())
+  companyId             String  @unique
+  company               Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Pension rates (basis points: 800 = 8%)
+  pensionEmployeeRate   Int     @default(800)
+  pensionEmployerRate   Int     @default(1000)
+  pensionBasis          String  @default("BASIC_HOUSING_TRANSPORT")
+
+  // NHF
+  nhfEnabled            Boolean @default(true)
+  nhfRate               Int     @default(250) // 2.5%
+
+  // NSITF (employer only)
+  nsitfRate             Int     @default(100) // 1%
+
+  // Tax relief mode: NTA2025 (tax-free threshold) or CRA (legacy)
+  taxReliefMode         String  @default("NTA2025")
+  taxFreeThresholdKobo  BigInt  @default(80000000) // ₦800,000 annual
+  craFixedKobo          BigInt  @default(20000000) // ₦200,000 (legacy CRA)
+  craPercentBps         Int     @default(100)      // 1% of gross
+  craGrossPercentBps    Int     @default(2000)     // 20% of gross
+  rentReliefCapKobo     BigInt  @default(50000000) // ₦500,000
+  minimumWageExemptKobo BigInt  @default(84000000) // ₦840,000 annual (₦70k/month)
+
+  updatedAt             DateTime @updatedAt
+}
+
+model TaxBand {
+  id          String  @id @default(cuid())
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lowerBoundKobo BigInt
+  upperBoundKobo BigInt? // null = no upper limit
+  rateBps     Int     // 1500 = 15%
+  sortOrder   Int
+  effectiveFrom DateTime @default(now())
+  effectiveTo   DateTime?
+
+  @@index([companyId, sortOrder])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId   String?  @unique
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  payrollRunsCreated  PayrollRun[] @relation("CreatedBy")
+  payrollRunsApproved PayrollRun[] @relation("ApprovedBy")
+  leaveApprovals      LeaveRequest[] @relation("LeaveApprover")
+  auditLogs           AuditLog[]
+}
+
+model Employee {
+  id                  String         @id @default(cuid())
+  companyId           String
+  company             Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeCode        String
+  firstName           String
+  lastName            String
+  department          String
+  jobTitle            String
+  employmentType      EmploymentType @default(FULL_TIME)
+  status              EmployeeStatus @default(ACTIVE)
+  startDate           DateTime
+  endDate             DateTime?
+
+  // Bank & statutory IDs
+  bankName            String?
+  bankAccountNumber   String?
+  tin                 String?
+  rsaPin              String?
+  nhfNumber           String?
+
+  // Compensation (all in kobo)
+  basicSalaryKobo     BigInt
+  housingAllowanceKobo BigInt @default(0)
+  transportAllowanceKobo BigInt @default(0)
+  otherTaxableAllowancesKobo BigInt @default(0)
+  nonTaxableReimbursementsKobo BigInt @default(0)
+
+  // Optional rent for NTA2025 relief
+  annualRentKobo      BigInt @default(0)
+
+  nextOfKinName       String?
+  nextOfKinPhone      String?
+
+  user                User?
+  documents           EmployeeDocument[]
+  payslips            Payslip[]
+  leaveRequests       LeaveRequest[]
+  leaveBalances       LeaveBalance[]
+  payrollAdjustments  PayrollAdjustment[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([companyId, employeeCode])
+  @@index([companyId, status])
+}
+
+model EmployeeDocument {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name       String
+  fileUrl    String
+  uploadedAt DateTime @default(now())
+}
+
+model PayrollRun {
+  id          String           @id @default(cuid())
+  companyId   String
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  periodMonth Int
+  periodYear  Int
+  status      PayrollRunStatus @default(DRAFT)
+  createdById String
+  createdBy   User             @relation("CreatedBy", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy  User?            @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedAt  DateTime?
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  payslips    Payslip[]
+  adjustments PayrollAdjustment[]
+
+  @@unique([companyId, periodMonth, periodYear])
+  @@index([companyId, status])
+}
+
+model PayrollAdjustment {
+  id            String     @id @default(cuid())
+  payrollRunId  String
+  payrollRun    PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type          String     // BONUS, LOAN_DEDUCTION, ADVANCE, UNPAID_LEAVE
+  amountKobo    BigInt     // positive = earning, negative = deduction
+  description   String?
+  createdAt     DateTime   @default(now())
+
+  @@index([payrollRunId, employeeId])
+}
+
+model Payslip {
+  id                  String     @id @default(cuid())
+  payrollRunId        String
+  payrollRun          PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employeeId          String
+  employee            Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  grossPayKobo        BigInt
+  basicSalaryKobo     BigInt
+  housingAllowanceKobo BigInt
+  transportAllowanceKobo BigInt
+  otherAllowancesKobo BigInt
+  bonusesKobo         BigInt @default(0)
+
+  payeKobo            BigInt
+  pensionEmployeeKobo BigInt
+  pensionEmployerKobo BigInt
+  nhfKobo             BigInt @default(0)
+  nsitfKobo           BigInt @default(0)
+  otherDeductionsKobo BigInt @default(0)
+
+  netPayKobo          BigInt
+
+  // YTD snapshots at time of generation
+  ytdGrossKobo        BigInt @default(0)
+  ytdPayeKobo         BigInt @default(0)
+  ytdNetKobo          BigInt @default(0)
+
+  breakdown           Json?
+  generatedAt         DateTime @default(now())
+
+  @@unique([payrollRunId, employeeId])
+  @@index([employeeId])
+}
+
+model LeaveRequest {
+  id          String             @id @default(cuid())
+  employeeId  String
+  employee    Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type        LeaveType
+  startDate   DateTime
+  endDate     DateTime
+  days        Int
+  reason      String?
+  status      LeaveRequestStatus @default(PENDING)
+  approvedById String?
+  approvedBy  User?              @relation("LeaveApprover", fields: [approvedById], references: [id])
+  approvedAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([employeeId, status])
+}
+
+model LeaveBalance {
+  id           String    @id @default(cuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType
+  year         Int
+  entitledDays Int
+  usedDays     Int       @default(0)
+
+  @@unique([employeeId, leaveType, year])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  companyId   String?
+  action      String
+  entityType  String
+  entityId    String
+  performedById String
+  performedBy User     @relation(fields: [performedById], references: [id])
+  changes     Json?
+  timestamp   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([performedById])
+}

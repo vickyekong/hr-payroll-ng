@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fafaf9;
+  --foreground: #1c1917;
+  --accent: #44403c;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-feature-settings: "tnum" 1;
+}
+
+@layer base {
+  * {
+    @apply border-stone-200;
+  }
+}

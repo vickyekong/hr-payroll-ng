@@ -1,0 +1,104 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { requirePermission, handleApiError } from "@/lib/api-auth";
+import { nairaToKobo } from "@/lib/money";
+import { serializeBigInts } from "@/lib/payroll/config-mapper";
+import { z } from "zod";
+
+const updateSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  department: z.string().min(1).optional(),
+  jobTitle: z.string().min(1).optional(),
+  status: z.enum(["ACTIVE", "ON_LEAVE", "SUSPENDED", "TERMINATED"]).optional(),
+  employmentType: z.enum(["FULL_TIME", "CONTRACT"]).optional(),
+  bankName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  tin: z.string().optional(),
+  rsaPin: z.string().optional(),
+  nhfNumber: z.string().optional(),
+  basicSalary: z.number().positive().optional(),
+  housingAllowance: z.number().min(0).optional(),
+  transportAllowance: z.number().min(0).optional(),
+  otherTaxableAllowances: z.number().min(0).optional(),
+  nonTaxableReimbursements: z.number().min(0).optional(),
+  annualRent: z.number().min(0).optional(),
+  nextOfKinName: z.string().optional(),
+  nextOfKinPhone: z.string().optional(),
+});
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await requirePermission("manageEmployees");
+    const employee = await prisma.employee.findFirst({
+      where: { id: params.id, companyId: session.user.companyId },
+      include: { leaveBalances: true, documents: true },
+    });
+    if (!employee) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json(serializeBigInts(employee));
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await requirePermission("manageEmployees");
+    const body = updateSchema.parse(await req.json());
+
+    const existing = await prisma.employee.findFirst({
+      where: { id: params.id, companyId: session.user.companyId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const employee = await prisma.employee.update({
+      where: { id: params.id },
+      data: {
+        ...(body.firstName && { firstName: body.firstName }),
+        ...(body.lastName && { lastName: body.lastName }),
+        ...(body.department && { department: body.department }),
+        ...(body.jobTitle && { jobTitle: body.jobTitle }),
+        ...(body.status && { status: body.status }),
+        ...(body.employmentType && { employmentType: body.employmentType }),
+        ...(body.bankName !== undefined && { bankName: body.bankName }),
+        ...(body.bankAccountNumber !== undefined && { bankAccountNumber: body.bankAccountNumber }),
+        ...(body.tin !== undefined && { tin: body.tin }),
+        ...(body.rsaPin !== undefined && { rsaPin: body.rsaPin }),
+        ...(body.nhfNumber !== undefined && { nhfNumber: body.nhfNumber }),
+        ...(body.basicSalary !== undefined && { basicSalaryKobo: nairaToKobo(body.basicSalary) }),
+        ...(body.housingAllowance !== undefined && { housingAllowanceKobo: nairaToKobo(body.housingAllowance) }),
+        ...(body.transportAllowance !== undefined && { transportAllowanceKobo: nairaToKobo(body.transportAllowance) }),
+        ...(body.otherTaxableAllowances !== undefined && { otherTaxableAllowancesKobo: nairaToKobo(body.otherTaxableAllowances) }),
+        ...(body.nonTaxableReimbursements !== undefined && { nonTaxableReimbursementsKobo: nairaToKobo(body.nonTaxableReimbursements) }),
+        ...(body.annualRent !== undefined && { annualRentKobo: nairaToKobo(body.annualRent) }),
+        ...(body.nextOfKinName !== undefined && { nextOfKinName: body.nextOfKinName }),
+        ...(body.nextOfKinPhone !== undefined && { nextOfKinPhone: body.nextOfKinPhone }),
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        companyId: session.user.companyId,
+        action: "UPDATE",
+        entityType: "Employee",
+        entityId: employee.id,
+        performedById: session.user.id,
+        changes: body,
+      },
+    });
+
+    return NextResponse.json(employee);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
