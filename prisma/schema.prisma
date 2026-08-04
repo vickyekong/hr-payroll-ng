@@ -16,9 +16,15 @@ enum UserRole {
 
 enum EmployeeStatus {
   ACTIVE
-  ON_LEAVE
   SUSPENDED
-  TERMINATED
+  ON_LEAVE
+  SICK_LEAVE
+  FIRED
+}
+
+enum EmployeeSex {
+  MALE
+  FEMALE
 }
 
 enum EmploymentType {
@@ -137,6 +143,7 @@ model Employee {
   jobTitle            String
   employmentType      EmploymentType @default(FULL_TIME)
   status              EmployeeStatus @default(ACTIVE)
+  sex                 EmployeeSex?
   startDate           DateTime
   endDate             DateTime?
 

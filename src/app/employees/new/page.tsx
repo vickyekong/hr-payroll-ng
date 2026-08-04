@@ -23,6 +23,7 @@ export default function NewEmployeePage() {
       employeeCode: form.get("employeeCode"),
       firstName: form.get("firstName"),
       lastName: form.get("lastName"),
+      sex: form.get("sex"),
       department: form.get("department"),
       jobTitle: form.get("jobTitle"),
       startDate: form.get("startDate"),
@@ -78,6 +79,22 @@ export default function NewEmployeePage() {
               <div>
                 <Label htmlFor="lastName">Last name</Label>
                 <Input id="lastName" name="lastName" required className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="sex">Sex</Label>
+                <select
+                  id="sex"
+                  name="sex"
+                  required
+                  className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
+                  defaultValue=""
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                </select>
               </div>
               <div>
                 <Label htmlFor="department">Department</Label>

@@ -8,6 +8,10 @@ import { formatCurrency, employeeFullName, formatDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  employeeSexLabel,
+  employeeStatusLabel,
+} from "@/lib/employees/status";
 
 export default async function EmployeeDetailPage({
   params,
@@ -38,10 +42,11 @@ export default async function EmployeeDetailPage({
           </h1>
           <p className="mt-1 text-sm text-stone-500">
             {employee.jobTitle} · {employee.department}
+            {employee.sex ? ` · ${employeeSexLabel(employee.sex)}` : ""}
           </p>
         </div>
         <Badge variant={employeeStatusVariant(employee.status)}>
-          {employee.status.replace("_", " ")}
+          {employeeStatusLabel(employee.status)}
         </Badge>
       </div>
 

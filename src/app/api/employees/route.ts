@@ -12,6 +12,10 @@ const employeeSchema = z.object({
   department: z.string().min(1),
   jobTitle: z.string().min(1),
   employmentType: z.enum(["FULL_TIME", "CONTRACT"]).default("FULL_TIME"),
+  status: z
+    .enum(["ACTIVE", "SUSPENDED", "ON_LEAVE", "SICK_LEAVE", "FIRED"])
+    .default("ACTIVE"),
+  sex: z.enum(["MALE", "FEMALE"]),
   startDate: z.string(),
   bankName: z.string().optional(),
   bankAccountNumber: z.string().optional(),
@@ -55,6 +59,8 @@ export async function POST(req: NextRequest) {
         department: body.department,
         jobTitle: body.jobTitle,
         employmentType: body.employmentType,
+        status: body.status,
+        sex: body.sex,
         startDate: new Date(body.startDate),
         bankName: body.bankName,
         bankAccountNumber: body.bankAccountNumber,

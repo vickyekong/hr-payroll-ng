@@ -18,6 +18,7 @@ interface EmployeeData {
   department: string;
   jobTitle: string;
   status: string;
+  sex: string | null;
   employmentType: string;
   bankName: string | null;
   bankAccountNumber: string | null;
@@ -59,6 +60,7 @@ export default function EditEmployeePage() {
       department: form.get("department"),
       jobTitle: form.get("jobTitle"),
       status: form.get("status"),
+      sex: form.get("sex") || null,
       employmentType: form.get("employmentType"),
       basicSalary: Number(form.get("basicSalary")),
       housingAllowance: Number(form.get("housingAllowance") || 0),
@@ -162,9 +164,23 @@ export default function EditEmployeePage() {
                   className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
                 >
                   <option value="ACTIVE">Active</option>
-                  <option value="ON_LEAVE">On leave</option>
                   <option value="SUSPENDED">Suspended</option>
-                  <option value="TERMINATED">Terminated</option>
+                  <option value="ON_LEAVE">Leave</option>
+                  <option value="SICK_LEAVE">Sick leave</option>
+                  <option value="FIRED">Fired</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="sex">Sex</Label>
+                <select
+                  id="sex"
+                  name="sex"
+                  defaultValue={employee.sex ?? ""}
+                  className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
+                >
+                  <option value="">Select…</option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
                 </select>
               </div>
               <div>

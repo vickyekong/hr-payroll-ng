@@ -54,9 +54,11 @@ export function employeeStatusVariant(
     case "ACTIVE":
       return "success";
     case "ON_LEAVE":
+    case "SICK_LEAVE":
       return "info";
     case "SUSPENDED":
       return "warning";
+    case "FIRED":
     case "TERMINATED":
       return "danger";
     default:

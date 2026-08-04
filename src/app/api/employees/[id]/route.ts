@@ -10,7 +10,10 @@ const updateSchema = z.object({
   lastName: z.string().min(1).optional(),
   department: z.string().min(1).optional(),
   jobTitle: z.string().min(1).optional(),
-  status: z.enum(["ACTIVE", "ON_LEAVE", "SUSPENDED", "TERMINATED"]).optional(),
+  status: z
+    .enum(["ACTIVE", "SUSPENDED", "ON_LEAVE", "SICK_LEAVE", "FIRED"])
+    .optional(),
+  sex: z.enum(["MALE", "FEMALE"]).nullable().optional(),
   employmentType: z.enum(["FULL_TIME", "CONTRACT"]).optional(),
   bankName: z.string().optional(),
   bankAccountNumber: z.string().optional(),
@@ -69,6 +72,7 @@ export async function PATCH(
         ...(body.department && { department: body.department }),
         ...(body.jobTitle && { jobTitle: body.jobTitle }),
         ...(body.status && { status: body.status }),
+        ...(body.sex !== undefined && { sex: body.sex }),
         ...(body.employmentType && { employmentType: body.employmentType }),
         ...(body.bankName !== undefined && { bankName: body.bankName }),
         ...(body.bankAccountNumber !== undefined && { bankAccountNumber: body.bankAccountNumber }),
