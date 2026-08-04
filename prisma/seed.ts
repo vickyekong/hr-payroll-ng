@@ -62,6 +62,17 @@ async function main() {
     });
   }
 
+  const departmentNames = ["Engineering", "Finance", "HR", "Management"];
+  for (const name of departmentNames) {
+    await prisma.department.upsert({
+      where: {
+        companyId_name: { companyId: company.id, name },
+      },
+      update: {},
+      create: { companyId: company.id, name },
+    });
+  }
+
   const employees = [
     {
       employeeCode: "EMP-001",

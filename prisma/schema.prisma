@@ -65,9 +65,22 @@ model Company {
   statutoryConfig       StatutoryConfig?
   users                 User[]
   employees             Employee[]
+  departments           Department[]
   payrollRuns           PayrollRun[]
   taxBands              TaxBand[]
   googleDriveIntegration GoogleDriveIntegration?
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 model StatutoryConfig {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,15 @@ export default function NewEmployeePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>(
+    []
+  );
+
+  useEffect(() => {
+    fetch("/api/departments")
+      .then((r) => r.json())
+      .then((data) => setDepartments(Array.isArray(data) ? data : []));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -98,7 +107,22 @@ export default function NewEmployeePage() {
               </div>
               <div>
                 <Label htmlFor="department">Department</Label>
-                <Input id="department" name="department" required className="mt-1" />
+                <select
+                  id="department"
+                  name="department"
+                  required
+                  className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
+                  defaultValue=""
+                >
+                  <option value="" disabled>
+                    {departments.length ? "Select…" : "Add departments first"}
+                  </option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label htmlFor="jobTitle">Job title</Label>

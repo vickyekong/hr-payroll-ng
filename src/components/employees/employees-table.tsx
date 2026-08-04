@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import Link from "next/link";
 import {
   Table,
@@ -38,14 +38,24 @@ function toBigInt(value: string | number | bigint): bigint {
   return typeof value === "bigint" ? value : BigInt(value);
 }
 
-export function EmployeesTable({ employees }: { employees: EmployeeTableRow[] }) {
+export function EmployeesTable({
+  employees,
+  departments,
+}: {
+  employees: EmployeeTableRow[];
+  departments: string[];
+}) {
   const router = useRouter();
   const [rows, setRows] = useState(employees);
   const [savingId, setSavingId] = useState<string | null>(null);
 
+  useEffect(() => {
+    setRows(employees);
+  }, [employees]);
+
   async function patchEmployee(
     id: string,
-    patch: { status?: string; sex?: string | null }
+    patch: { status?: string; sex?: string | null; department?: string }
   ) {
     setSavingId(id);
     const previous = rows.find((r) => r.id === id);
@@ -75,6 +85,13 @@ export function EmployeesTable({ employees }: { employees: EmployeeTableRow[] })
       setSavingId(null);
     }
   }
+
+  const departmentOptions = Array.from(
+    new Set([
+      ...departments,
+      ...rows.map((r) => r.department).filter(Boolean),
+    ])
+  ).sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white">
@@ -131,7 +148,30 @@ export function EmployeesTable({ employees }: { employees: EmployeeTableRow[] })
                     ))}
                   </select>
                 </TableCell>
-                <TableCell>{emp.department}</TableCell>
+                <TableCell>
+                  <select
+                    aria-label={`Department for ${emp.employeeCode}`}
+                    className="h-8 min-w-[10rem] rounded-md border border-stone-300 bg-white px-2 text-sm text-stone-800 disabled:opacity-60"
+                    value={emp.department}
+                    disabled={savingId === emp.id || departmentOptions.length === 0}
+                    onChange={(e) => {
+                      void patchEmployee(emp.id, {
+                        department: e.target.value,
+                      });
+                    }}
+                  >
+                    {departmentOptions.length === 0 && (
+                      <option value={emp.department || ""}>
+                        Add departments above
+                      </option>
+                    )}
+                    {departmentOptions.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </TableCell>
                 <TableCell>
                   <select
                     aria-label={`Status for ${emp.employeeCode}`}

@@ -41,11 +41,17 @@ export default function EditEmployeePage() {
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>(
+    []
+  );
 
   useEffect(() => {
     fetch(`/api/employees/${params.id}`)
       .then((r) => r.json())
       .then(setEmployee);
+    fetch("/api/departments")
+      .then((r) => r.json())
+      .then((data) => setDepartments(Array.isArray(data) ? data : []));
   }, [params.id]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -137,13 +143,26 @@ export default function EditEmployeePage() {
               </div>
               <div>
                 <Label htmlFor="department">Department</Label>
-                <Input
+                <select
                   id="department"
                   name="department"
                   defaultValue={employee.department}
                   required
-                  className="mt-1"
-                />
+                  className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
+                >
+                  {[
+                    ...new Set([
+                      employee.department,
+                      ...departments.map((d) => d.name),
+                    ]),
+                  ]
+                    .filter(Boolean)
+                    .map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                </select>
               </div>
               <div>
                 <Label htmlFor="jobTitle">Job title</Label>
