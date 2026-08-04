@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAuth, handleApiError, AuthError } from "@/lib/api-auth";
+import {
+  requireAuth,
+  requirePermission,
+  handleApiError,
+  AuthError,
+} from "@/lib/api-auth";
 import { can } from "@/lib/permissions";
 import {
   getGoogleAuthUrl,

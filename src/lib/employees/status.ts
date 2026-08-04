@@ -19,7 +19,7 @@ export type EmployeeSexValue = (typeof EMPLOYEE_SEX_OPTIONS)[number]["value"];
 export function employeeStatusLabel(status: string): string {
   return (
     EMPLOYEE_STATUS_OPTIONS.find((o) => o.value === status)?.label ??
-    status.replaceAll("_", " ")
+    status.replace(/_/g, " ")
   );
 }
 

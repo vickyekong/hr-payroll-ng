@@ -8,11 +8,51 @@ import { ExportActions } from "@/components/exports/export-actions";
 import { getGoogleDriveStatus } from "@/lib/google-drive";
 import { EmployeesPageClient } from "@/components/employees/employees-page-client";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
+import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
+
+async function ensureDepartmentsFromEmployees(companyId: string) {
+  const [departments, employees] = await Promise.all([
+    prisma.department.findMany({
+      where: { companyId },
+      select: { name: true },
+    }),
+    prisma.employee.findMany({
+      where: { companyId },
+      select: { department: true },
+      distinct: ["department"],
+    }),
+  ]);
+
+  const existingNames = new Set(departments.map((d) => d.name));
+  const missing = employees
+    .map((e) => e.department)
+    .filter((name): name is string => Boolean(name) && !existingNames.has(name));
+
+  if (missing.length > 0) {
+    await prisma.department.createMany({
+      data: missing.map((name) => ({ companyId, name })),
+      skipDuplicates: true,
+    });
+  }
+}
 
 export default async function EmployeesPage() {
   const session = await getServerSession(authOptions);
-  const companyId = session!.user.companyId;
-  const [employees, driveStatus, departments] = await Promise.all([
+  if (!session?.user?.companyId) {
+    redirect("/login");
+  }
+
+  const companyId = session.user.companyId;
+
+  try {
+    await ensureDepartmentsFromEmployees(companyId);
+  } catch (error) {
+    console.error("Department backfill skipped:", error);
+  }
+
+  const [employees, driveStatus, allDepartments] = await Promise.all([
     prisma.employee.findMany({
       where: { companyId },
       orderBy: { employeeCode: "asc" },
@@ -24,28 +64,6 @@ export default async function EmployeesPage() {
       select: { id: true, name: true },
     }),
   ]);
-
-  // Ensure departments exist for any free-text values already on employees.
-  const existingNames = new Set(departments.map((d) => d.name));
-  const missing = Array.from(
-    new Set(employees.map((e) => e.department).filter(Boolean))
-  ).filter((name) => !existingNames.has(name));
-
-  if (missing.length > 0) {
-    await prisma.department.createMany({
-      data: missing.map((name) => ({ companyId, name })),
-      skipDuplicates: true,
-    });
-  }
-
-  const allDepartments =
-    missing.length === 0
-      ? departments
-      : await prisma.department.findMany({
-          where: { companyId },
-          orderBy: { name: "asc" },
-          select: { id: true, name: true },
-        });
 
   const tableRows = serializeBigInts(employees).map((emp) => ({
     id: emp.id,
