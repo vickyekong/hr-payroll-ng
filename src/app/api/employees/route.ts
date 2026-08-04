@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, handleApiError } from "@/lib/api-auth";
 import { nairaToKobo } from "@/lib/money";
+import { serializeBigInts } from "@/lib/payroll/config-mapper";
 import { z } from "zod";
 
 const employeeSchema = z.object({
@@ -34,7 +35,7 @@ export async function GET() {
       where: { companyId: session.user.companyId },
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(employees);
+    return NextResponse.json(serializeBigInts(employees));
   } catch (error) {
     return handleApiError(error);
   }
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(employee, { status: 201 });
+    return NextResponse.json(serializeBigInts(employee), { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }

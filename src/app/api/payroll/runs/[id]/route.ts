@@ -6,6 +6,7 @@ import {
   reverseAndRegeneratePayrollRun,
   PayrollRunError,
 } from "@/lib/payroll/run-service";
+import { serializeBigInts } from "@/lib/payroll/config-mapper";
 import { z } from "zod";
 
 const actionSchema = z.object({
@@ -66,7 +67,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json(run);
+    return NextResponse.json(serializeBigInts(run));
   } catch (error) {
     return handleApiError(error);
   }
@@ -132,7 +133,7 @@ export async function PATCH(
       const updated = await prisma.payrollRun.findUnique({
         where: { id: run.id },
       });
-      return NextResponse.json(updated);
+      return NextResponse.json(serializeBigInts(updated));
     }
 
     let update: {
@@ -213,7 +214,7 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(serializeBigInts(updated));
   } catch (error) {
     if (error instanceof PayrollRunError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

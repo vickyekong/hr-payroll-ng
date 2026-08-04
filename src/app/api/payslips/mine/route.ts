@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth, handleApiError, AuthError } from "@/lib/api-auth";
+import { serializeBigInts } from "@/lib/payroll/config-mapper";
 
 export async function GET() {
   try {
@@ -30,11 +31,13 @@ export async function GET() {
     });
 
     return NextResponse.json(
-      payslips.map((p) => ({
-        ...p,
-        grossPayKobo: p.grossPayKobo.toString(),
-        netPayKobo: p.netPayKobo.toString(),
-      }))
+      serializeBigInts(
+        payslips.map((p) => ({
+          ...p,
+          grossPayKobo: p.grossPayKobo.toString(),
+          netPayKobo: p.netPayKobo.toString(),
+        }))
+      )
     );
   } catch (error) {
     return handleApiError(error);

@@ -97,7 +97,7 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(employee);
+    return NextResponse.json(serializeBigInts(employee));
   } catch (error) {
     return handleApiError(error);
   }

@@ -64,8 +64,16 @@ export default function PayrollRunDetailPage() {
 
   function loadRun() {
     fetch(`/api/payroll/runs/${params.id}`)
-      .then((r) => r.json())
-      .then(setRun);
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error ?? "Failed to load payroll run");
+        setRun(data);
+      })
+      .catch((err) => {
+        console.error(err);
+        setRun(null);
+        alert(err instanceof Error ? err.message : "Failed to load payroll run");
+      });
   }
 
   useEffect(() => {

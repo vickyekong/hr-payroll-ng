@@ -7,6 +7,7 @@ import {
   recalculatePayrollRun,
   PayrollRunError,
 } from "@/lib/payroll/run-service";
+import { serializeBigInts } from "@/lib/payroll/config-mapper";
 import { z } from "zod";
 
 const adjustmentSchema = z.object({
@@ -90,7 +91,7 @@ export async function POST(
       },
     });
 
-    return NextResponse.json(adjustment, { status: 201 });
+    return NextResponse.json(serializeBigInts(adjustment), { status: 201 });
   } catch (error) {
     if (error instanceof PayrollRunError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
