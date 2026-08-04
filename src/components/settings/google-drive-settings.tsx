@@ -136,8 +136,9 @@ export function GoogleDriveSettings() {
         <CardTitle>Google Workspace sync</CardTitle>
         <p className="text-sm text-stone-500">
           Connect your Workspace account to keep a shared HR folder, staff
-          spreadsheet database, and payroll spreadsheet in Drive/Sheets for the
-          team.
+          spreadsheet database, payroll Sheets, and the HR Desk company inbox
+          (Gmail). Reconnect once after deploy so Gmail read + draft access is
+          granted.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
