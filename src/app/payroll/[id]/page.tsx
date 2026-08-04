@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge, payrollStatusVariant } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency, getMonthName } from "@/lib/utils";
 import { ExportActions } from "@/components/exports/export-actions";
+import { can } from "@/lib/permissions";
 
 interface PayslipRow {
   id: string;
@@ -59,10 +61,19 @@ interface PayrollRunDetail {
 
 export default function PayrollRunDetailPage() {
   const params = useParams();
+  const { data: session } = useSession();
   const [run, setRun] = useState<PayrollRunDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [showAdjustForm, setShowAdjustForm] = useState(false);
   const [driveConnected, setDriveConnected] = useState(false);
+  const [submitNotice, setSubmitNotice] = useState<{
+    reviewUrl: string;
+    recipients: Array<{ name: string; email: string; role: string; emailSent: boolean }>;
+  } | null>(null);
+
+  const canApprove = session?.user?.role
+    ? can(session.user.role, "approvePayroll")
+    : false;
 
   function loadRun() {
     fetch(`/api/payroll/runs/${params.id}`)
@@ -96,12 +107,23 @@ export default function PayrollRunDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     });
+    const data = await res.json().catch(() => ({}));
     setLoading(false);
-    if (res.ok) loadRun();
-    else {
-      const data = await res.json();
+    if (!res.ok) {
       alert(data.error ?? "Action failed");
+      return;
     }
+
+    if (action === "submit_review" && data.notification) {
+      setSubmitNotice({
+        reviewUrl: data.notification.reviewUrl,
+        recipients: data.notification.recipients ?? [],
+      });
+    } else {
+      setSubmitNotice(null);
+    }
+
+    loadRun();
   }
 
   async function recalculate() {
@@ -206,6 +228,86 @@ export default function PayrollRunDetailPage() {
         </CardContent>
       </Card>
 
+      {run.status === "UNDER_REVIEW" && canApprove && (
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <CardHeader>
+            <CardTitle>Approval required</CardTitle>
+            <p className="text-sm text-stone-600">
+              HR submitted this payroll for your review. Approve to lock figures,
+              or send it back to draft.
+            </p>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button onClick={() => doAction("approve")} disabled={loading}>
+              Approve payroll
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (confirm("Send this payroll back to HR as draft?")) {
+                  doAction("reject");
+                }
+              }}
+              disabled={loading}
+            >
+              Send back to HR
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {submitNotice && (
+        <Card className="mb-6 border-emerald-200 bg-emerald-50">
+          <CardHeader>
+            <CardTitle>Submitted for approval</CardTitle>
+            <p className="text-sm text-stone-600">
+              Accountant / GM were notified with a review link.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <Label htmlFor="reviewLink">Approval link</Label>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <Input
+                  id="reviewLink"
+                  readOnly
+                  value={submitNotice.reviewUrl}
+                  className="min-w-[16rem] flex-1 bg-white"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(submitNotice.reviewUrl);
+                    alert("Approval link copied");
+                  }}
+                >
+                  Copy link
+                </Button>
+              </div>
+            </div>
+            <ul className="space-y-1 text-sm text-stone-700">
+              {submitNotice.recipients.map((r) => (
+                <li key={r.email}>
+                  {r.name} ({r.email})
+                  {r.role === "FINANCE"
+                    ? " · Accountant"
+                    : r.role === "SUPER_ADMIN"
+                      ? " · GM / Super Admin"
+                      : ` · ${r.role}`}
+                  {r.emailSent ? " · email sent" : " · in-app only"}
+                </li>
+              ))}
+              {submitNotice.recipients.length === 0 && (
+                <li className="text-stone-500">
+                  No Finance or Super Admin users found to notify.
+                </li>
+              )}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="mb-6 flex flex-wrap gap-2">
         {isDraft && (
           <>
@@ -223,14 +325,14 @@ export default function PayrollRunDetailPage() {
               onClick={() => doAction("submit_review")}
               disabled={loading || run.payslips.length === 0}
             >
-              Submit for review
+              Submit to accountant / GM
             </Button>
           </>
         )}
-        {run.status === "UNDER_REVIEW" && (
-          <Button onClick={() => doAction("approve")} disabled={loading}>
-            Approve payroll
-          </Button>
+        {run.status === "UNDER_REVIEW" && !canApprove && (
+          <p className="text-sm text-stone-500">
+            Waiting for accountant or GM approval.
+          </p>
         )}
         {run.status === "APPROVED" && (
           <Button onClick={() => doAction("mark_paid")} disabled={loading}>

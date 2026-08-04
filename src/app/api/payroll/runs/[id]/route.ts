@@ -7,10 +7,11 @@ import {
   PayrollRunError,
 } from "@/lib/payroll/run-service";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
+import { notifyPayrollSubmitted } from "@/lib/notifications";
 import { z } from "zod";
 
 const actionSchema = z.object({
-  action: z.enum(["submit_review", "approve", "mark_paid", "reverse"]),
+  action: z.enum(["submit_review", "approve", "reject", "mark_paid", "reverse"]),
   reason: z.string().optional(),
 });
 
@@ -142,6 +143,9 @@ export async function PATCH(
       approvedAt?: Date | null;
       paidAt?: Date | null;
     } = {};
+    let notificationResult: Awaited<
+      ReturnType<typeof notifyPayrollSubmitted>
+    > | null = null;
 
     switch (body.action) {
       case "submit_review":
@@ -164,6 +168,14 @@ export async function PATCH(
           );
         }
         update = { status: "UNDER_REVIEW" };
+        notificationResult = await notifyPayrollSubmitted({
+          companyId: session.user.companyId,
+          runId: run.id,
+          periodMonth: run.periodMonth,
+          periodYear: run.periodYear,
+          submittedByName: session.user.name,
+          excludeUserId: session.user.id,
+        });
         break;
 
       case "approve":
@@ -178,6 +190,21 @@ export async function PATCH(
           status: "APPROVED",
           approvedById: session.user.id,
           approvedAt: new Date(),
+        };
+        break;
+
+      case "reject":
+        await requirePermission("approvePayroll");
+        if (run.status !== "UNDER_REVIEW") {
+          return NextResponse.json(
+            { error: "Can only reject runs under review" },
+            { status: 400 }
+          );
+        }
+        update = {
+          status: "DRAFT",
+          approvedById: null,
+          approvedAt: null,
         };
         break;
 
@@ -198,6 +225,18 @@ export async function PATCH(
       data: update,
     });
 
+    if (body.action === "approve" || body.action === "reject") {
+      await prisma.notification.updateMany({
+        where: {
+          entityType: "PayrollRun",
+          entityId: run.id,
+          type: "PAYROLL_REVIEW",
+          readAt: null,
+        },
+        data: { readAt: new Date() },
+      });
+    }
+
     await prisma.auditLog.create({
       data: {
         companyId: session.user.companyId,
@@ -210,11 +249,33 @@ export async function PATCH(
           reason: body.reason,
           from: run.status,
           to: update.status,
+          notified: notificationResult?.recipients.map((r) => ({
+            email: r.email,
+            role: r.role,
+            emailSent: r.emailSent,
+          })),
+          reviewUrl: notificationResult?.linkUrl,
         },
       },
     });
 
-    return NextResponse.json(serializeBigInts(updated));
+    return NextResponse.json(
+      serializeBigInts({
+        ...updated,
+        notification: notificationResult
+          ? {
+              reviewUrl: notificationResult.linkUrl,
+              periodLabel: notificationResult.periodLabel,
+              recipients: notificationResult.recipients.map((r) => ({
+                name: r.name,
+                email: r.email,
+                role: r.role,
+                emailSent: r.emailSent,
+              })),
+            }
+          : null,
+      })
+    );
   } catch (error) {
     if (error instanceof PayrollRunError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

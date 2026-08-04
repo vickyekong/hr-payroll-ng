@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/cn";
 import { can } from "@/lib/permissions";
 import type { UserRole } from "@prisma/client";
+import { NotificationsBell } from "@/components/layout/notifications-bell";
 
 const navItems: Array<{
   href: string;
@@ -39,6 +40,7 @@ export function Sidebar() {
         <h1 className="mt-1 text-lg font-semibold text-stone-900">HR Pay NG</h1>
       </div>
       <nav className="flex-1 space-y-0.5 p-3">
+        <NotificationsBell />
         {visible.map((item) => (
           <Link
             key={item.href}
