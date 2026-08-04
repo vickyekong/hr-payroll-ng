@@ -190,12 +190,23 @@ export default function PayrollRunDetailPage() {
         </Badge>
       </div>
 
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Export payroll</CardTitle>
+          <p className="text-sm text-stone-500">
+            Download CSV, save to Google Drive, or sync this run to Sheets.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ExportActions
+            kind="payroll"
+            runId={run.id}
+            driveConnected={driveConnected}
+          />
+        </CardContent>
+      </Card>
+
       <div className="mb-6 flex flex-wrap gap-2">
-        <ExportActions
-          kind="payroll"
-          runId={run.id}
-          driveConnected={driveConnected}
-        />
         {isDraft && (
           <>
             <Button onClick={recalculate} variant="outline" disabled={loading}>
