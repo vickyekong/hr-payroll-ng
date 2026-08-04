@@ -74,6 +74,7 @@ model Company {
   attendanceSettings    AttendanceSettings?
   attendancePunches     AttendancePunch[]
   attendanceDays        AttendanceDay[]
+  hrDeskMessages        HrDeskMessage[]
 }
 
 model Department {
@@ -198,6 +199,7 @@ model Employee {
   shiftAssignment     EmployeeShiftAssignment?
   attendancePunches   AttendancePunch[]
   attendanceDays      AttendanceDay[]
+  hrDeskMessages      HrDeskMessage[]
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -366,8 +368,56 @@ model GoogleDriveIntegration {
   payrollSpreadsheetId String?
   lastStaffSyncAt      DateTime?
   lastPayrollSyncAt    DateTime?
+  lastHrMailSyncAt     DateTime?
   connectedAt          DateTime @default(now())
   updatedAt            DateTime @updatedAt
+}
+
+enum HrDeskCategory {
+  LEAVE
+  RESIGNATION
+  COMPLAINT
+  INQUIRY
+  PAYROLL
+  GENERAL
+}
+
+enum HrDeskStatus {
+  NEW
+  TRIAGED
+  ASSIGNED
+  APPROVED
+  REJECTED
+  CLOSED
+}
+
+model HrDeskMessage {
+  id              String         @id @default(cuid())
+  companyId       String
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  gmailMessageId  String
+  gmailThreadId   String?
+  fromEmail       String
+  fromName        String?
+  subject         String
+  snippet         String
+  bodyText        String?
+  receivedAt      DateTime
+  category        HrDeskCategory @default(GENERAL)
+  status          HrDeskStatus   @default(NEW)
+  employeeId      String?
+  employee        Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  leaveRequestId  String?
+  draftMessageId  String?
+  notes           String?
+  processedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([companyId, gmailMessageId])
+  @@index([companyId, status, receivedAt])
+  @@index([companyId, category])
+  @@index([employeeId])
 }
 
 enum AttendanceDayStatus {

@@ -91,6 +91,12 @@ export default async function DashboardPage() {
           href="/leave"
         />
         <Kpi
+          label="HR Desk inbox"
+          value={kpis.pendingHrDesk}
+          hint="Mail to triage"
+          href="/hr-desk"
+        />
+        <Kpi
           label="Last net pay"
           value={
             latestPaidRun
@@ -248,6 +254,16 @@ export default async function DashboardPage() {
                     </Link>
                   ) : (
                     "No pending leave requests"
+                  )}
+                </li>
+                <li>
+                  {kpis.pendingHrDesk > 0 ? (
+                    <Link href="/hr-desk" className="hover:text-stone-900">
+                      {kpis.pendingHrDesk} HR Desk mail
+                      {kpis.pendingHrDesk === 1 ? "" : "s"} awaiting triage →
+                    </Link>
+                  ) : (
+                    "HR Desk inbox is clear"
                   )}
                 </li>
                 <li>

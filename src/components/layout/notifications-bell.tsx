@@ -23,10 +23,12 @@ export function NotificationsBell() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const role = session?.user?.role;
-  const canApprove = role ? can(role, "approvePayroll") : false;
+  const showBell = role
+    ? can(role, "approvePayroll") || can(role, "manageLeave")
+    : false;
 
   const load = useCallback(() => {
-    if (!canApprove) return;
+    if (!showBell) return;
     fetch("/api/notifications")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -35,16 +37,16 @@ export function NotificationsBell() {
         setUnreadCount(data.unreadCount ?? 0);
       })
       .catch(() => undefined);
-  }, [canApprove]);
+  }, [showBell]);
 
   useEffect(() => {
     load();
-    if (!canApprove) return;
+    if (!showBell) return;
     const id = window.setInterval(load, 30000);
     return () => window.clearInterval(id);
-  }, [canApprove, load]);
+  }, [showBell, load]);
 
-  if (!canApprove) return null;
+  if (!showBell) return null;
 
   async function markRead(id: string) {
     await fetch(`/api/notifications/${id}`, {
@@ -74,7 +76,7 @@ export function NotificationsBell() {
         }}
         className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900"
       >
-        <span>Approvals</span>
+        <span>Approvals & inbox</span>
         {unreadCount > 0 && (
           <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
             {unreadCount}

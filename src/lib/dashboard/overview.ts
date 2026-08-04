@@ -12,6 +12,7 @@ export async function getOverviewData(companyId: string) {
     latestPaidRun,
     unreadNotifications,
     departments,
+    pendingHrDesk,
   ] = await Promise.all([
     prisma.employee.findMany({
       where: { companyId },
@@ -46,10 +47,16 @@ export async function getOverviewData(companyId: string) {
       where: {
         companyId,
         readAt: null,
-        type: "PAYROLL_REVIEW",
+        type: { in: ["PAYROLL_REVIEW", "HR_DESK"] },
       },
     }),
     prisma.department.count({ where: { companyId } }),
+    prisma.hrDeskMessage.count({
+      where: {
+        companyId,
+        status: { in: ["NEW", "ASSIGNED", "TRIAGED"] },
+      },
+    }),
   ]);
 
   const totalStaff = employees.length;
@@ -101,6 +108,7 @@ export async function getOverviewData(companyId: string) {
       pendingApprovals,
       draftRuns,
       unreadApprovals: unreadNotifications,
+      pendingHrDesk,
     },
     charts: {
       byStatus: toSlices(byStatusMap, employeeStatusLabel),
