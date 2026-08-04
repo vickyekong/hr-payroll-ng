@@ -304,12 +304,16 @@ model AuditLog {
 }
 
 model GoogleDriveIntegration {
-  id           String   @id @default(cuid())
-  companyId    String   @unique
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  refreshToken String
-  email        String?
-  folderId     String?
-  connectedAt  DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  companyId            String   @unique
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  refreshToken         String
+  email                String?
+  folderId             String?
+  staffSpreadsheetId   String?
+  payrollSpreadsheetId String?
+  lastStaffSyncAt      DateTime?
+  lastPayrollSyncAt    DateTime?
+  connectedAt          DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }

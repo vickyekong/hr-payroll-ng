@@ -57,18 +57,30 @@ The build **requires** these environment variables in your Vercel project (**Set
 | `DATABASE_URL` | `postgresql://user:pass@host/db?sslmode=require` | Supabase, Neon, or Railway Postgres |
 | `NEXTAUTH_SECRET` | output of `openssl rand -base64 32` | **Build fails without this** |
 | `NEXTAUTH_URL` | `https://your-app.vercel.app` | Your production URL (or preview URL for previews) |
-| `GOOGLE_CLIENT_ID` | from Google Cloud Console | Optional — enables Google Drive exports |
+| `GOOGLE_CLIENT_ID` | from Google Cloud Console | Optional — Workspace Drive/Sheets sync |
 | `GOOGLE_CLIENT_SECRET` | from Google Cloud Console | Optional — pair with client ID |
-| `GOOGLE_DRIVE_FOLDER_ID` | Drive folder ID | Optional default upload folder |
+| `GOOGLE_DRIVE_FOLDER_ID` | Shared Drive folder ID | Optional HR root folder |
+| `GOOGLE_WORKSPACE_DOMAIN` | `yourcompany.com` | Optional auto-share with domain |
 
-### Google Drive exports
+### Google Workspace sync
 
-1. In [Google Cloud Console](https://console.cloud.google.com/), create an OAuth **Web application** client.
-2. Add authorized redirect URI:
+Keeps a shared HR area in Drive/Sheets:
+
+- Folder tree: `HR Pay NG / Staff`, `Payroll`, `Exports`
+- **Staff Database** Google Sheet (live employee roster)
+- **Payroll Database** Google Sheet (all payslip rows)
+- CSV snapshots in **Exports**
+
+Setup:
+
+1. Google Cloud Console → enable **Drive API** and **Sheets API**
+2. Create OAuth **Web** client with redirect:
    `https://hr-payroll-ng.vercel.app/api/integrations/google-drive/callback`
-3. Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in Vercel and redeploy.
-4. Sign in as Super Admin → **Settings** → **Connect Google Drive**.
-5. Use **Export CSV** or **Save to Google Drive** on Employees and Payroll run pages.
+3. Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` (and optional domain/folder) in Vercel → redeploy
+4. Super Admin → **Settings** → **Connect Google Workspace** → **Sync staff + payroll now**
+5. Share the `HR Pay NG` folder with HR/Finance in Workspace (or rely on domain sharing)
+
+On Employees / Payroll pages you can also **Sync Sheet** or **Save file to Drive**.
 
 After connecting the repo:
 

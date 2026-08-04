@@ -13,6 +13,11 @@ interface DriveStatus {
   email: string | null;
   folderId: string | null;
   connectedAt: string | null;
+  staffSpreadsheetId: string | null;
+  payrollSpreadsheetId: string | null;
+  lastStaffSyncAt: string | null;
+  lastPayrollSyncAt: string | null;
+  workspaceDomain: string | null;
 }
 
 export function GoogleDriveSettings() {
@@ -20,6 +25,7 @@ export function GoogleDriveSettings() {
   const [status, setStatus] = useState<DriveStatus | null>(null);
   const [folderId, setFolderId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   function load() {
@@ -36,12 +42,14 @@ export function GoogleDriveSettings() {
     const result = searchParams.get("googleDrive");
     if (!result) return;
     const messages: Record<string, string> = {
-      connected: "Google Drive connected successfully.",
+      connected:
+        "Google Workspace connected. You can sync staff and payroll databases now.",
       denied: "Google authorization was denied.",
-      error: "Google Drive connection failed. Check server logs and OAuth config.",
+      error:
+        "Google Workspace connection failed. Check OAuth config and try again.",
       missing_code: "Google callback was missing an auth code.",
       invalid_state: "Google callback state was invalid. Try connecting again.",
-      forbidden: "Only Super Admin can connect Google Drive.",
+      forbidden: "Only Super Admin can connect Google Workspace.",
     };
     setMessage(messages[result] ?? null);
   }, [searchParams]);
@@ -62,7 +70,7 @@ export function GoogleDriveSettings() {
   }
 
   async function disconnect() {
-    if (!confirm("Disconnect Google Drive from this company?")) return;
+    if (!confirm("Disconnect Google Workspace from this company?")) return;
     setLoading(true);
     const res = await fetch("/api/integrations/google-drive/settings", {
       method: "PATCH",
@@ -71,7 +79,7 @@ export function GoogleDriveSettings() {
     });
     setLoading(false);
     if (res.ok) {
-      setMessage("Google Drive disconnected.");
+      setMessage("Google Workspace disconnected.");
       load();
     }
   }
@@ -85,7 +93,7 @@ export function GoogleDriveSettings() {
     });
     setLoading(false);
     if (res.ok) {
-      setMessage("Drive folder saved.");
+      setMessage("Workspace folder saved.");
       load();
     } else {
       const data = await res.json();
@@ -93,13 +101,43 @@ export function GoogleDriveSettings() {
     }
   }
 
+  async function syncAll() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/integrations/google-workspace/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "all" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Sync failed");
+      const links = (data.results ?? [])
+        .map((r: { type: string; webViewLink?: string }) => r.webViewLink)
+        .filter(Boolean);
+      setMessage(
+        `Synced staff and payroll to Google Workspace${
+          data.results?.[0] ? ` (${data.results.map((r: { rowCount: number }) => r.rowCount).join(" / ")} rows)` : ""
+        }.`
+      );
+      load();
+      if (links[0] && confirm("Open the staff spreadsheet in Google Sheets?")) {
+        window.open(links[0], "_blank");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   return (
     <Card className="mt-8">
       <CardHeader>
-        <CardTitle>Google Drive exports</CardTitle>
+        <CardTitle>Google Workspace sync</CardTitle>
         <p className="text-sm text-stone-500">
-          Connect a Google account so staff and payroll CSVs can be uploaded to
-          Drive.
+          Connect your Workspace account to keep a shared HR folder, staff
+          spreadsheet database, and payroll spreadsheet in Drive/Sheets for the
+          team.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -112,8 +150,9 @@ export function GoogleDriveSettings() {
         {!status?.configured && (
           <p className="text-sm text-amber-700">
             Add <code className="font-mono">GOOGLE_CLIENT_ID</code> and{" "}
-            <code className="font-mono">GOOGLE_CLIENT_SECRET</code> in Vercel env
-            vars, then redeploy.
+            <code className="font-mono">GOOGLE_CLIENT_SECRET</code> in Vercel,
+            optionally <code className="font-mono">GOOGLE_WORKSPACE_DOMAIN</code>{" "}
+            (e.g. yourcompany.com) to auto-share with the domain, then redeploy.
           </p>
         )}
 
@@ -121,24 +160,92 @@ export function GoogleDriveSettings() {
           <>
             <p className="text-sm text-stone-700">
               Connected as{" "}
-              <span className="font-medium">{status.email ?? "Google account"}</span>
+              <span className="font-medium">
+                {status.email ?? "Google account"}
+              </span>
+              {status.workspaceDomain
+                ? ` · sharing with @${status.workspaceDomain}`
+                : null}
             </p>
+
+            <div className="grid gap-2 text-sm text-stone-600 sm:grid-cols-2">
+              <div>
+                Staff database:{" "}
+                {status.staffSpreadsheetId ? (
+                  <a
+                    className="text-stone-900 underline"
+                    href={`https://docs.google.com/spreadsheets/d/${status.staffSpreadsheetId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open Sheet
+                  </a>
+                ) : (
+                  "Not synced yet"
+                )}
+                {status.lastStaffSyncAt && (
+                  <span className="block text-xs text-stone-400">
+                    Last sync {new Date(status.lastStaffSyncAt).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <div>
+                Payroll database:{" "}
+                {status.payrollSpreadsheetId ? (
+                  <a
+                    className="text-stone-900 underline"
+                    href={`https://docs.google.com/spreadsheets/d/${status.payrollSpreadsheetId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open Sheet
+                  </a>
+                ) : (
+                  "Not synced yet"
+                )}
+                {status.lastPayrollSyncAt && (
+                  <span className="block text-xs text-stone-400">
+                    Last sync{" "}
+                    {new Date(status.lastPayrollSyncAt).toLocaleString()}
+                  </span>
+                )}
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="folderId">Drive folder ID (optional)</Label>
+              <Label htmlFor="folderId">Root Drive folder ID (optional)</Label>
               <Input
                 id="folderId"
                 className="mt-1"
                 value={folderId}
                 onChange={(e) => setFolderId(e.target.value)}
-                placeholder="Leave blank to upload to My Drive root"
+                placeholder="Leave blank to auto-create “HR Pay NG”"
               />
               <p className="mt-1 text-xs text-stone-500">
-                From a Drive folder URL: …/folders/&lt;FOLDER_ID&gt;
+                Sync creates Staff, Payroll, and Exports folders under this root.
+                Use a Shared Drive folder ID for company-wide access.
               </p>
             </div>
+
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={saveFolder} disabled={loading}>
+              <Button type="button" onClick={syncAll} disabled={syncing || loading}>
+                {syncing ? "Syncing…" : "Sync staff + payroll now"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={saveFolder}
+                disabled={loading}
+              >
                 Save folder
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={connect}
+                disabled={loading}
+              >
+                Reconnect
               </Button>
               <Button
                 type="button"
@@ -156,7 +263,7 @@ export function GoogleDriveSettings() {
             onClick={connect}
             disabled={loading || !status?.configured}
           >
-            {loading ? "Redirecting…" : "Connect Google Drive"}
+            {loading ? "Redirecting…" : "Connect Google Workspace"}
           </Button>
         )}
       </CardContent>
