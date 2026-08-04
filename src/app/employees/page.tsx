@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
@@ -85,8 +86,7 @@ export default async function EmployeesPage() {
         <div>
           <h1 className="text-2xl font-semibold text-stone-900">Employees</h1>
           <p className="mt-1 text-sm text-stone-500">
-            {employees.length} records · edit sex, department, and status in the
-            table
+            Staff directory, departments, and clock-machine attendance reports
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -97,10 +97,12 @@ export default async function EmployeesPage() {
         </div>
       </div>
 
-      <EmployeesPageClient
-        employees={tableRows}
-        initialDepartments={allDepartments}
-      />
+      <Suspense fallback={<p className="text-sm text-stone-500">Loading…</p>}>
+        <EmployeesPageClient
+          employees={tableRows}
+          initialDepartments={allDepartments}
+        />
+      </Suspense>
     </AppShell>
   );
 }

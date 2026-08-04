@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const periodStart = startOfMonth(new Date(year, month - 1, 1));
     const periodEnd = endOfMonth(periodStart);
 
-    const [settings, shifts, days, unmappedPunches, employeesMissingDevice] =
+    const [settings, shifts, allDays, unmappedPunches, employeesMissingDevice] =
       await Promise.all([
         prisma.attendanceSettings.upsert({
           where: { companyId: session.user.companyId },
@@ -31,7 +31,6 @@ export async function GET(req: NextRequest) {
           where: {
             companyId: session.user.companyId,
             workDate: { gte: periodStart, lte: periodEnd },
-            ...(status ? { status: status as never } : {}),
           },
           include: {
             employee: {
@@ -47,7 +46,7 @@ export async function GET(req: NextRequest) {
             shift: { select: { name: true, startTime: true, endTime: true } },
           },
           orderBy: [{ workDate: "desc" }, { employee: { employeeCode: "asc" } }],
-          take: 500,
+          take: 5000,
         }),
         prisma.attendancePunch.count({
           where: {
@@ -65,15 +64,143 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
+    const days = status
+      ? allDays.filter((d) => d.status === status)
+      : allDays;
+
     const summary = {
-      present: days.filter((d) => d.status === "PRESENT").length,
-      late: days.filter((d) => d.status === "LATE").length,
-      partial: days.filter((d) => d.status === "PARTIAL").length,
-      absent: days.filter((d) => d.status === "ABSENT").length,
-      onLeave: days.filter((d) => d.status === "ON_LEAVE").length,
-      penaltyKobo: days
+      present: allDays.filter((d) => d.status === "PRESENT").length,
+      late: allDays.filter((d) => d.status === "LATE").length,
+      partial: allDays.filter((d) => d.status === "PARTIAL").length,
+      absent: allDays.filter((d) => d.status === "ABSENT").length,
+      onLeave: allDays.filter((d) => d.status === "ON_LEAVE").length,
+      off: allDays.filter((d) => d.status === "OFF").length,
+      penaltyKobo: allDays
         .reduce((sum, d) => sum + d.penaltyKobo, 0n)
         .toString(),
+    };
+
+    const staffMap = new Map<
+      string,
+      {
+        id: string;
+        employeeCode: string;
+        name: string;
+        department: string;
+        clockDeviceId: string | null;
+        present: number;
+        late: number;
+        partial: number;
+        absent: number;
+        onLeave: number;
+        scheduledDays: number;
+        penaltyKobo: bigint;
+      }
+    >();
+
+    for (const day of allDays) {
+      if (day.status === "OFF") continue;
+      const key = day.employee.id;
+      const row = staffMap.get(key) ?? {
+        id: day.employee.id,
+        employeeCode: day.employee.employeeCode,
+        name: `${day.employee.firstName} ${day.employee.lastName}`,
+        department: day.employee.department,
+        clockDeviceId: day.employee.clockDeviceId,
+        present: 0,
+        late: 0,
+        partial: 0,
+        absent: 0,
+        onLeave: 0,
+        scheduledDays: 0,
+        penaltyKobo: 0n,
+      };
+      row.scheduledDays += 1;
+      if (day.status === "PRESENT") row.present += 1;
+      if (day.status === "LATE") row.late += 1;
+      if (day.status === "PARTIAL") row.partial += 1;
+      if (day.status === "ABSENT") row.absent += 1;
+      if (day.status === "ON_LEAVE") row.onLeave += 1;
+      row.penaltyKobo += day.penaltyKobo;
+      staffMap.set(key, row);
+    }
+
+    const staffSummary = Array.from(staffMap.values())
+      .map((s) => ({
+        ...s,
+        attendanceRate:
+          s.scheduledDays - s.onLeave > 0
+            ? Math.round(
+                ((s.present + s.late + s.partial) /
+                  (s.scheduledDays - s.onLeave)) *
+                  100
+              )
+            : null,
+        penaltyKobo: s.penaltyKobo.toString(),
+      }))
+      .sort(
+        (a, b) =>
+          b.absent - a.absent || a.employeeCode.localeCompare(b.employeeCode)
+      );
+
+    const deptAbsent = new Map<string, number>();
+    for (const s of staffSummary) {
+      if (s.absent > 0) {
+        deptAbsent.set(
+          s.department || "Unassigned",
+          (deptAbsent.get(s.department || "Unassigned") ?? 0) + s.absent
+        );
+      }
+    }
+
+    const charts = {
+      byStatus: [
+        { key: "PRESENT", name: "Present", value: summary.present },
+        { key: "LATE", name: "Late", value: summary.late },
+        { key: "PARTIAL", name: "Partial", value: summary.partial },
+        { key: "ABSENT", name: "Absent", value: summary.absent },
+        { key: "ON_LEAVE", name: "On leave", value: summary.onLeave },
+      ].filter((c) => c.value > 0),
+      byDepartmentAbsent: Array.from(deptAbsent.entries())
+        .map(([name, value]) => ({ key: name, name, value }))
+        .sort((a, b) => b.value - a.value),
+      byStaffOutcome: [
+        {
+          key: "PERFECT",
+          name: "Perfect attendance",
+          value: staffSummary.filter(
+            (s) =>
+              s.absent === 0 &&
+              s.late === 0 &&
+              s.partial === 0 &&
+              s.present > 0
+          ).length,
+        },
+        {
+          key: "LATE_ONLY",
+          name: "Late / partial only",
+          value: staffSummary.filter(
+            (s) => s.absent === 0 && (s.late > 0 || s.partial > 0)
+          ).length,
+        },
+        {
+          key: "HAS_ABSENT",
+          name: "Missed shift(s)",
+          value: staffSummary.filter((s) => s.absent > 0).length,
+        },
+        {
+          key: "LEAVE_ONLY",
+          name: "On leave only",
+          value: staffSummary.filter(
+            (s) =>
+              s.absent === 0 &&
+              s.late === 0 &&
+              s.partial === 0 &&
+              s.present === 0 &&
+              s.onLeave > 0
+          ).length,
+        },
+      ].filter((c) => c.value > 0),
     };
 
     return NextResponse.json(
@@ -82,9 +209,11 @@ export async function GET(req: NextRequest) {
         settings,
         shifts,
         summary,
+        charts,
+        staffSummary,
         unmappedPunches,
         employeesMissingDevice,
-        days,
+        days: days.slice(0, 500),
       })
     );
   } catch (error) {
