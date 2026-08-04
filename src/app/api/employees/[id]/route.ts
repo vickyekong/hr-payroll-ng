@@ -14,7 +14,6 @@ const updateSchema = z.object({
     .enum(["ACTIVE", "SUSPENDED", "ON_LEAVE", "SICK_LEAVE", "FIRED"])
     .optional(),
   sex: z.enum(["MALE", "FEMALE"]).nullable().optional(),
-  department: z.string().min(1).optional(),
   employmentType: z.enum(["FULL_TIME", "CONTRACT"]).optional(),
   bankName: z.string().optional(),
   bankAccountNumber: z.string().optional(),
@@ -74,7 +73,6 @@ export async function PATCH(
         ...(body.jobTitle && { jobTitle: body.jobTitle }),
         ...(body.status && { status: body.status }),
         ...(body.sex !== undefined && { sex: body.sex }),
-        ...(body.department && { department: body.department }),
         ...(body.employmentType && { employmentType: body.employmentType }),
         ...(body.bankName !== undefined && { bankName: body.bankName }),
         ...(body.bankAccountNumber !== undefined && { bankAccountNumber: body.bankAccountNumber }),
