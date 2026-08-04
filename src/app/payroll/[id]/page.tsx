@@ -18,6 +18,7 @@ import {
   TableCurrency,
 } from "@/components/ui/table";
 import { formatCurrency, getMonthName } from "@/lib/utils";
+import { ExportActions } from "@/components/exports/export-actions";
 
 interface PayslipRow {
   id: string;
@@ -61,6 +62,7 @@ export default function PayrollRunDetailPage() {
   const [run, setRun] = useState<PayrollRunDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [showAdjustForm, setShowAdjustForm] = useState(false);
+  const [driveConnected, setDriveConnected] = useState(false);
 
   function loadRun() {
     fetch(`/api/payroll/runs/${params.id}`)
@@ -78,6 +80,12 @@ export default function PayrollRunDetailPage() {
 
   useEffect(() => {
     loadRun();
+    fetch("/api/integrations/google-drive")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.connected) setDriveConnected(true);
+      })
+      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
@@ -183,6 +191,11 @@ export default function PayrollRunDetailPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
+        <ExportActions
+          kind="payroll"
+          runId={run.id}
+          driveConnected={driveConnected}
+        />
         {isDraft && (
           <>
             <Button onClick={recalculate} variant="outline" disabled={loading}>

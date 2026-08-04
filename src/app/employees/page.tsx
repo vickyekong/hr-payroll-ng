@@ -15,26 +15,35 @@ import { Badge, employeeStatusVariant } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { employeeFullName } from "@/lib/utils";
+import { ExportActions } from "@/components/exports/export-actions";
+import { getGoogleDriveStatus } from "@/lib/google-drive";
 
 export default async function EmployeesPage() {
   const session = await getServerSession(authOptions);
-  const employees = await prisma.employee.findMany({
-    where: { companyId: session!.user.companyId },
-    orderBy: { employeeCode: "asc" },
-  });
+  const companyId = session!.user.companyId;
+  const [employees, driveStatus] = await Promise.all([
+    prisma.employee.findMany({
+      where: { companyId },
+      orderBy: { employeeCode: "asc" },
+    }),
+    getGoogleDriveStatus(companyId),
+  ]);
 
   return (
     <AppShell>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-stone-900">Employees</h1>
           <p className="mt-1 text-sm text-stone-500">
             {employees.length} records
           </p>
         </div>
-        <Button asChild>
-          <Link href="/employees/new">Add employee</Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportActions kind="staff" driveConnected={driveStatus.connected} />
+          <Button asChild>
+            <Link href="/employees/new">Add employee</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border border-stone-200 bg-white">

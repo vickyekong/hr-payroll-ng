@@ -56,11 +56,12 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  statutoryConfig StatutoryConfig?
-  users           User[]
-  employees       Employee[]
-  payrollRuns     PayrollRun[]
-  taxBands        TaxBand[]
+  statutoryConfig       StatutoryConfig?
+  users                 User[]
+  employees             Employee[]
+  payrollRuns           PayrollRun[]
+  taxBands              TaxBand[]
+  googleDriveIntegration GoogleDriveIntegration?
 }
 
 model StatutoryConfig {
@@ -300,4 +301,15 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([performedById])
   @@index([companyId, timestamp])
+}
+
+model GoogleDriveIntegration {
+  id           String   @id @default(cuid())
+  companyId    String   @unique
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  refreshToken String
+  email        String?
+  folderId     String?
+  connectedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }

@@ -57,6 +57,18 @@ The build **requires** these environment variables in your Vercel project (**Set
 | `DATABASE_URL` | `postgresql://user:pass@host/db?sslmode=require` | Supabase, Neon, or Railway Postgres |
 | `NEXTAUTH_SECRET` | output of `openssl rand -base64 32` | **Build fails without this** |
 | `NEXTAUTH_URL` | `https://your-app.vercel.app` | Your production URL (or preview URL for previews) |
+| `GOOGLE_CLIENT_ID` | from Google Cloud Console | Optional — enables Google Drive exports |
+| `GOOGLE_CLIENT_SECRET` | from Google Cloud Console | Optional — pair with client ID |
+| `GOOGLE_DRIVE_FOLDER_ID` | Drive folder ID | Optional default upload folder |
+
+### Google Drive exports
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create an OAuth **Web application** client.
+2. Add authorized redirect URI:
+   `https://hr-payroll-ng.vercel.app/api/integrations/google-drive/callback`
+3. Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in Vercel and redeploy.
+4. Sign in as Super Admin → **Settings** → **Connect Google Drive**.
+5. Use **Export CSV** or **Save to Google Drive** on Employees and Payroll run pages.
 
 After connecting the repo:
 
@@ -88,6 +100,7 @@ The build script runs `prisma generate` automatically before `next build`.
 - **Employee self-service** — own payslips only (strict access control)
 - **Leave management** — requests, approvals, unpaid leave → payroll deductions
 - **Reports** — remittances, department breakdown, employer cost
+- **Exports** — staff & payroll CSV download, optional Google Drive upload
 
 ## Tax Configuration
 
