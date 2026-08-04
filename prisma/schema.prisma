@@ -299,4 +299,5 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([performedById])
+  @@index([companyId, timestamp])
 }

@@ -18,6 +18,7 @@ export const PERMISSIONS = {
   runPayroll: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
   approvePayroll: ["SUPER_ADMIN", "FINANCE"] as UserRole[],
   viewReports: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE"] as UserRole[],
+  viewAuditLog: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE"] as UserRole[],
   manageLeave: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
   viewOwnPayslips: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE", "EMPLOYEE"] as UserRole[],
 };

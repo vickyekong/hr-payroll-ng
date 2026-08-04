@@ -48,6 +48,28 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
+## Deploy to Vercel
+
+The build **requires** these environment variables in your Vercel project (**Settings → Environment Variables**). Apply to Production, Preview, and Development:
+
+| Variable | Example | Notes |
+|----------|---------|-------|
+| `DATABASE_URL` | `postgresql://user:pass@host/db?sslmode=require` | Supabase, Neon, or Railway Postgres |
+| `NEXTAUTH_SECRET` | output of `openssl rand -base64 32` | **Build fails without this** |
+| `NEXTAUTH_URL` | `https://your-app.vercel.app` | Your production URL (or preview URL for previews) |
+
+After connecting the repo:
+
+1. Add the env vars above in Vercel.
+2. Redeploy.
+3. Run schema + seed against the production database once:
+   ```bash
+   DATABASE_URL="your-prod-url" npm run db:push
+   DATABASE_URL="your-prod-url" npm run db:seed
+   ```
+
+The build script runs `prisma generate` automatically before `next build`.
+
 ## Demo Accounts
 
 | Role | Email | Password |

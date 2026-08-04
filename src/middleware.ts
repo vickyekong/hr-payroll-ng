@@ -11,6 +11,7 @@ export const config = {
     "/payroll/:path*",
     "/leave/:path*",
     "/reports/:path*",
+    "/audit-log/:path*",
     "/my/:path*",
     "/settings/:path*",
   ],
