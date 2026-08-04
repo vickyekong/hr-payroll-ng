@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PayrollExportPanel } from "@/components/exports/payroll-export-panel";
 import { getMonthName } from "@/lib/utils";
 
 interface PayrollRun {
@@ -61,13 +62,15 @@ export default function PayrollPage() {
         <div>
           <h1 className="text-2xl font-semibold text-stone-900">Payroll Runs</h1>
           <p className="mt-1 text-sm text-stone-500">
-            Create, review, and approve monthly payroll
+            Create, review, approve, and export monthly payroll
           </p>
         </div>
         <Button onClick={createRun} disabled={creating}>
           {creating ? "Creating…" : "New payroll run"}
         </Button>
       </div>
+
+      <PayrollExportPanel runs={runs} />
 
       <div className="rounded-lg border border-stone-200 bg-white">
         <Table>
