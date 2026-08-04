@@ -5,7 +5,9 @@ import { authOptions } from "@/lib/auth";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge, payrollStatusVariant } from "@/components/ui/badge";
 import { OverviewCharts } from "@/components/dashboard/overview-charts";
+import { PeopleIntelligencePanel } from "@/components/dashboard/people-intelligence";
 import { getOverviewData } from "@/lib/dashboard/overview";
+import { getStaffIntelligence } from "@/lib/intelligence/staff-insights";
 import { formatCurrency, getMonthName } from "@/lib/utils";
 import { employeeStatusLabel } from "@/lib/employees/status";
 
@@ -50,7 +52,11 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const data = await getOverviewData(session.user.companyId);
+  const companyId = session.user.companyId;
+  const [data, intelligence] = await Promise.all([
+    getOverviewData(companyId),
+    getStaffIntelligence(companyId),
+  ]);
   const { kpis, charts, recentRuns, latestPaidRun } = data;
 
   return (
@@ -58,11 +64,12 @@ export default async function DashboardPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-stone-900">Overview</h1>
         <p className="mt-1 text-sm text-stone-500">
-          Glance report for HR — people, payroll, leave, and approvals
+          Intelligent glance report — stats, insights, and actions from your HR
+          data
         </p>
       </div>
 
-      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <Kpi
           label="Total staff"
           value={kpis.totalStaff}
@@ -97,6 +104,16 @@ export default async function DashboardPage() {
           href="/hr-desk"
         />
         <Kpi
+          label="Attendance rate"
+          value={
+            intelligence.stats.avgAttendanceRate == null
+              ? "—"
+              : `${intelligence.stats.avgAttendanceRate}%`
+          }
+          hint={`${intelligence.stats.missedShifts} missed shifts`}
+          href="/employees?tab=attendance"
+        />
+        <Kpi
           label="Last net pay"
           value={
             latestPaidRun
@@ -111,6 +128,15 @@ export default async function DashboardPage() {
           href={latestPaidRun ? `/payroll/${latestPaidRun.id}` : "/payroll"}
         />
       </div>
+
+      <PeopleIntelligencePanel
+        briefing={intelligence.briefing}
+        periodLabel={intelligence.period.label}
+        stats={intelligence.stats}
+        insights={intelligence.insights}
+        watchlist={intelligence.watchlist}
+        departmentHealth={intelligence.departmentHealth}
+      />
 
       <section className="mb-8">
         <div className="mb-3 flex items-end justify-between gap-3">
