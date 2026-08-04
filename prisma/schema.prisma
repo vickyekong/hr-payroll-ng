@@ -70,6 +70,10 @@ model Company {
   taxBands              TaxBand[]
   googleDriveIntegration GoogleDriveIntegration?
   notifications         Notification[]
+  shiftTemplates        ShiftTemplate[]
+  attendanceSettings    AttendanceSettings?
+  attendancePunches     AttendancePunch[]
+  attendanceDays        AttendanceDay[]
 }
 
 model Department {
@@ -182,17 +186,24 @@ model Employee {
   nextOfKinName       String?
   nextOfKinPhone      String?
 
+  // Biometric / clock-in machine badge or user ID
+  clockDeviceId       String?
+
   user                User?
   documents           EmployeeDocument[]
   payslips            Payslip[]
   leaveRequests       LeaveRequest[]
   leaveBalances       LeaveBalance[]
   payrollAdjustments  PayrollAdjustment[]
+  shiftAssignment     EmployeeShiftAssignment?
+  attendancePunches   AttendancePunch[]
+  attendanceDays      AttendanceDay[]
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   @@unique([companyId, employeeCode])
+  @@unique([companyId, clockDeviceId])
   @@index([companyId, status])
 }
 
@@ -358,3 +369,101 @@ model GoogleDriveIntegration {
   connectedAt          DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
+
+enum AttendanceDayStatus {
+  PRESENT
+  LATE
+  PARTIAL
+  ABSENT
+  ON_LEAVE
+  OFF
+}
+
+model AttendanceSettings {
+  id                      String  @id @default(cuid())
+  companyId               String  @unique
+  company                 Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// Fixed penalty per missed shift in kobo. If 0, use daily basic rate.
+  missedShiftPenaltyKobo  BigInt  @default(0)
+  /// Minutes after shift start before marking LATE
+  lateGraceMinutes        Int     @default(15)
+  /// Minimum minutes on site to count as PRESENT (else PARTIAL)
+  minPresentMinutes       Int     @default(240)
+  updatedAt               DateTime @updatedAt
+}
+
+model ShiftTemplate {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  /// "HH:mm" 24h local time
+  startTime     String
+  endTime       String
+  /// Mon=0 … Sun=6 as bitmask string length 7, e.g. "1111100" = Mon–Fri
+  workDays      String   @default("1111100")
+  graceMinutes  Int      @default(15)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  assignments   EmployeeShiftAssignment[]
+  attendanceDays AttendanceDay[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model EmployeeShiftAssignment {
+  id         String        @id @default(cuid())
+  employeeId String        @unique
+  employee   Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftId    String
+  shift      ShiftTemplate @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  updatedAt  DateTime      @updatedAt
+
+  @@index([shiftId])
+}
+
+model AttendancePunch {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  deviceUserId String
+  employeeId   String?
+  employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  punchedAt    DateTime
+  punchType    String?   // IN, OUT, or unknown from machine
+  source       String    @default("CSV_IMPORT")
+  importBatch  String?
+  rawLine      String?
+  createdAt    DateTime  @default(now())
+
+  @@unique([companyId, deviceUserId, punchedAt])
+  @@index([companyId, punchedAt])
+  @@index([employeeId, punchedAt])
+}
+
+model AttendanceDay {
+  id              String              @id @default(cuid())
+  companyId       String
+  company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workDate        DateTime
+  shiftId         String?
+  shift           ShiftTemplate?      @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  status          AttendanceDayStatus
+  clockInAt       DateTime?
+  clockOutAt      DateTime?
+  workedMinutes   Int                 @default(0)
+  lateMinutes     Int                 @default(0)
+  expectedMinutes Int                 @default(0)
+  penaltyKobo     BigInt              @default(0)
+  notes           String?
+  compiledAt      DateTime            @default(now())
+
+  @@unique([employeeId, workDate])
+  @@index([companyId, workDate, status])
+  @@index([companyId, status])
+}
+

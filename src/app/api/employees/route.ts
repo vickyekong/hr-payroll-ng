@@ -30,6 +30,7 @@ const employeeSchema = z.object({
   annualRent: z.number().min(0).default(0),
   nextOfKinName: z.string().optional(),
   nextOfKinPhone: z.string().optional(),
+  clockDeviceId: z.string().optional(),
 });
 
 export async function GET() {
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
         annualRentKobo: nairaToKobo(body.annualRent),
         nextOfKinName: body.nextOfKinName,
         nextOfKinPhone: body.nextOfKinPhone,
+        clockDeviceId: body.clockDeviceId?.trim() || null,
       },
     });
 

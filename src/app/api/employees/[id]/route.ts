@@ -28,6 +28,8 @@ const updateSchema = z.object({
   annualRent: z.number().min(0).optional(),
   nextOfKinName: z.string().optional(),
   nextOfKinPhone: z.string().optional(),
+  clockDeviceId: z.string().nullable().optional(),
+  shiftId: z.string().nullable().optional(),
 });
 
 export async function GET(
@@ -38,7 +40,11 @@ export async function GET(
     const session = await requirePermission("manageEmployees");
     const employee = await prisma.employee.findFirst({
       where: { id: params.id, companyId: session.user.companyId },
-      include: { leaveBalances: true, documents: true },
+      include: {
+        leaveBalances: true,
+        documents: true,
+        shiftAssignment: { include: { shift: true } },
+      },
     });
     if (!employee) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -87,8 +93,31 @@ export async function PATCH(
         ...(body.annualRent !== undefined && { annualRentKobo: nairaToKobo(body.annualRent) }),
         ...(body.nextOfKinName !== undefined && { nextOfKinName: body.nextOfKinName }),
         ...(body.nextOfKinPhone !== undefined && { nextOfKinPhone: body.nextOfKinPhone }),
+        ...(body.clockDeviceId !== undefined && {
+          clockDeviceId: body.clockDeviceId?.trim() || null,
+        }),
       },
     });
+
+    if (body.shiftId !== undefined) {
+      if (body.shiftId) {
+        const shift = await prisma.shiftTemplate.findFirst({
+          where: { id: body.shiftId, companyId: session.user.companyId },
+        });
+        if (!shift) {
+          return NextResponse.json({ error: "Shift not found" }, { status: 404 });
+        }
+        await prisma.employeeShiftAssignment.upsert({
+          where: { employeeId: params.id },
+          create: { employeeId: params.id, shiftId: body.shiftId },
+          update: { shiftId: body.shiftId },
+        });
+      } else {
+        await prisma.employeeShiftAssignment.deleteMany({
+          where: { employeeId: params.id },
+        });
+      }
+    }
 
     await prisma.auditLog.create({
       data: {

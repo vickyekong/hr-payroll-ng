@@ -12,7 +12,13 @@ import { z } from "zod";
 
 const adjustmentSchema = z.object({
   employeeId: z.string(),
-  type: z.enum(["BONUS", "LOAN_DEDUCTION", "ADVANCE", "UNPAID_LEAVE"]),
+  type: z.enum([
+    "BONUS",
+    "LOAN_DEDUCTION",
+    "ADVANCE",
+    "UNPAID_LEAVE",
+    "ATTENDANCE_PENALTY",
+  ]),
   amount: z.number().positive(),
   description: z.string().optional(),
 });

@@ -13,6 +13,7 @@ export function aggregateAdjustments(
   let loanDeductionKobo = 0n;
   let advanceDeductionKobo = 0n;
   let unpaidLeaveDeductionKobo = 0n;
+  let otherDeductionsKobo = 0n;
 
   for (const record of records) {
     const abs =
@@ -30,6 +31,9 @@ export function aggregateAdjustments(
       case "UNPAID_LEAVE":
         unpaidLeaveDeductionKobo += abs;
         break;
+      case "ATTENDANCE_PENALTY":
+        otherDeductionsKobo += abs;
+        break;
     }
   }
 
@@ -38,6 +42,7 @@ export function aggregateAdjustments(
     loanDeductionKobo,
     advanceDeductionKobo,
     unpaidLeaveDeductionKobo,
+    otherDeductionsKobo,
   };
 }
 

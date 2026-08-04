@@ -33,6 +33,8 @@ interface EmployeeData {
   annualRentKobo: string;
   nextOfKinName: string | null;
   nextOfKinPhone: string | null;
+  clockDeviceId: string | null;
+  shiftAssignment?: { shiftId: string } | null;
 }
 
 export default function EditEmployeePage() {
@@ -44,6 +46,7 @@ export default function EditEmployeePage() {
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>(
     []
   );
+  const [shifts, setShifts] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
     fetch(`/api/employees/${params.id}`)
@@ -52,6 +55,16 @@ export default function EditEmployeePage() {
     fetch("/api/departments")
       .then((r) => r.json())
       .then((data) => setDepartments(Array.isArray(data) ? data : []));
+    fetch("/api/attendance/shifts")
+      .then((r) => r.json())
+      .then((data) =>
+        setShifts(
+          (Array.isArray(data) ? data : []).map(
+            (s: { id: string; name: string }) => ({ id: s.id, name: s.name })
+          )
+        )
+      )
+      .catch(() => setShifts([]));
   }, [params.id]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -68,6 +81,8 @@ export default function EditEmployeePage() {
       status: form.get("status"),
       sex: form.get("sex") || null,
       employmentType: form.get("employmentType"),
+      clockDeviceId: String(form.get("clockDeviceId") || "").trim() || null,
+      shiftId: String(form.get("shiftId") || "") || null,
       basicSalary: Number(form.get("basicSalary")),
       housingAllowance: Number(form.get("housingAllowance") || 0),
       transportAllowance: Number(form.get("transportAllowance") || 0),
@@ -187,6 +202,32 @@ export default function EditEmployeePage() {
                   <option value="ON_LEAVE">Leave</option>
                   <option value="SICK_LEAVE">Sick leave</option>
                   <option value="FIRED">Fired</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="clockDeviceId">Clock machine ID</Label>
+                <Input
+                  id="clockDeviceId"
+                  name="clockDeviceId"
+                  defaultValue={employee.clockDeviceId ?? ""}
+                  placeholder="Badge / AcNo from device"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="shiftId">Shift</Label>
+                <select
+                  id="shiftId"
+                  name="shiftId"
+                  defaultValue={employee.shiftAssignment?.shiftId ?? ""}
+                  className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
+                >
+                  <option value="">No shift</option>
+                  {shifts.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
