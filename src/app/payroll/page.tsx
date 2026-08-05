@@ -44,6 +44,7 @@ export default function PayrollPage() {
       body: JSON.stringify({
         periodMonth: now.getMonth() + 1,
         periodYear: now.getFullYear(),
+        applyAttendancePenalties: true,
       }),
     });
     setCreating(false);
@@ -58,11 +59,12 @@ export default function PayrollPage() {
 
   return (
     <AppShell>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-stone-900">Payroll Runs</h1>
           <p className="mt-1 text-sm text-stone-500">
-            Create, review, approve, and export monthly payroll
+            One-click create recalculates salaries, unpaid leave, and attendance
+            penalties — then review the pre-flight summary before submit
           </p>
         </div>
         <Button onClick={createRun} disabled={creating}>

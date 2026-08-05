@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -20,6 +20,10 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency, getMonthName } from "@/lib/utils";
 import { ExportActions } from "@/components/exports/export-actions";
+import {
+  PayrollPreflightPanel,
+  type PreflightData,
+} from "@/components/payroll/preflight-panel";
 import { can } from "@/lib/permissions";
 
 interface PayslipRow {
@@ -63,17 +67,37 @@ export default function PayrollRunDetailPage() {
   const params = useParams();
   const { data: session } = useSession();
   const [run, setRun] = useState<PayrollRunDetail | null>(null);
+  const [preflight, setPreflight] = useState<PreflightData | null>(null);
+  const [preflightLoading, setPreflightLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showAdjustForm, setShowAdjustForm] = useState(false);
   const [driveConnected, setDriveConnected] = useState(false);
   const [submitNotice, setSubmitNotice] = useState<{
     reviewUrl: string;
-    recipients: Array<{ name: string; email: string; role: string; emailSent: boolean }>;
+    recipients: Array<{
+      name: string;
+      email: string;
+      role: string;
+      emailSent: boolean;
+    }>;
   } | null>(null);
 
   const canApprove = session?.user?.role
     ? can(session.user.role, "approvePayroll")
     : false;
+
+  const loadPreflight = useCallback(() => {
+    if (!params.id) return;
+    setPreflightLoading(true);
+    fetch(`/api/payroll/runs/${params.id}/preflight`)
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error ?? "Pre-flight failed");
+        setPreflight(data);
+      })
+      .catch(() => setPreflight(null))
+      .finally(() => setPreflightLoading(false));
+  }, [params.id]);
 
   function loadRun() {
     fetch(`/api/payroll/runs/${params.id}`)
@@ -91,6 +115,7 @@ export default function PayrollRunDetailPage() {
 
   useEffect(() => {
     loadRun();
+    loadPreflight();
     fetch("/api/integrations/google-drive")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -110,6 +135,7 @@ export default function PayrollRunDetailPage() {
     const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (!res.ok) {
+      if (data.preflight) setPreflight(data.preflight);
       alert(data.error ?? "Action failed");
       return;
     }
@@ -124,6 +150,7 @@ export default function PayrollRunDetailPage() {
     }
 
     loadRun();
+    loadPreflight();
   }
 
   async function recalculate() {
@@ -132,11 +159,35 @@ export default function PayrollRunDetailPage() {
       method: "POST",
     });
     setLoading(false);
-    if (res.ok) loadRun();
-    else {
+    if (res.ok) {
+      loadRun();
+      loadPreflight();
+    } else {
       const data = await res.json();
       alert(data.error ?? "Recalculate failed");
     }
+  }
+
+  async function applyAttendancePenalties() {
+    setLoading(true);
+    const res = await fetch("/api/attendance/apply-penalties", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payrollRunId: params.id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setLoading(false);
+    if (!res.ok) {
+      alert(data.error ?? "Could not apply attendance penalties");
+      return;
+    }
+    alert(
+      data.employeesPenalized
+        ? `Applied penalties for ${data.employeesPenalized} employee(s) (${data.missedShiftDays} missed shifts).`
+        : "No attendance penalties for this period."
+    );
+    loadRun();
+    loadPreflight();
   }
 
   async function deleteAdjustment(adjustmentId: string) {
@@ -147,8 +198,10 @@ export default function PayrollRunDetailPage() {
       { method: "DELETE" }
     );
     setLoading(false);
-    if (res.ok) loadRun();
-    else {
+    if (res.ok) {
+      loadRun();
+      loadPreflight();
+    } else {
       const data = await res.json();
       alert(data.error ?? "Failed to delete adjustment");
     }
@@ -172,6 +225,7 @@ export default function PayrollRunDetailPage() {
     if (res.ok) {
       setShowAdjustForm(false);
       loadRun();
+      loadPreflight();
       (e.target as HTMLFormElement).reset();
     } else {
       const data = await res.json();
@@ -188,6 +242,10 @@ export default function PayrollRunDetailPage() {
   }
 
   const isDraft = run.status === "DRAFT";
+  const canSubmit =
+    isDraft &&
+    run.payslips.length > 0 &&
+    (preflight?.canSubmit ?? false);
 
   const totals = run.payslips.reduce(
     (acc, p) => ({
@@ -212,19 +270,31 @@ export default function PayrollRunDetailPage() {
         </Badge>
       </div>
 
+      <PayrollPreflightPanel
+        data={preflight}
+        loading={preflightLoading}
+        onRefresh={loadPreflight}
+      />
+
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Export payroll</CardTitle>
+          <CardTitle>Export &amp; filing</CardTitle>
           <p className="text-sm text-stone-500">
-            Download CSV, save to Google Drive, or sync this run to Sheets.
+            Download CSV, statutory filing pack (PAYE / pension / NHF / NSITF /
+            bank list), or sync to Google.
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-wrap items-center gap-3">
           <ExportActions
             kind="payroll"
             runId={run.id}
             driveConnected={driveConnected}
           />
+          <Button variant="outline" size="sm" asChild>
+            <a href={`/api/payroll/runs/${run.id}/filing-pack`} download>
+              Download filing pack (ZIP)
+            </a>
+          </Button>
         </CardContent>
       </Card>
 
@@ -233,8 +303,8 @@ export default function PayrollRunDetailPage() {
           <CardHeader>
             <CardTitle>Approval required</CardTitle>
             <p className="text-sm text-stone-600">
-              HR submitted this payroll for your review. Approve to lock figures,
-              or send it back to draft.
+              HR submitted this payroll for your review. Check the pre-flight
+              summary above, then approve to lock figures or send back to draft.
             </p>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
@@ -315,6 +385,13 @@ export default function PayrollRunDetailPage() {
               Recalculate all
             </Button>
             <Button
+              onClick={applyAttendancePenalties}
+              variant="outline"
+              disabled={loading}
+            >
+              Apply attendance penalties
+            </Button>
+            <Button
               onClick={() => setShowAdjustForm(!showAdjustForm)}
               variant="outline"
               disabled={loading}
@@ -322,8 +399,21 @@ export default function PayrollRunDetailPage() {
               Add adjustment
             </Button>
             <Button
-              onClick={() => doAction("submit_review")}
-              disabled={loading || run.payslips.length === 0}
+              onClick={() => {
+                if (preflight && !preflight.canSubmit) {
+                  alert(
+                    "Fix pre-flight blockers before submitting to accountant / GM."
+                  );
+                  return;
+                }
+                doAction("submit_review");
+              }}
+              disabled={loading || !canSubmit}
+              title={
+                preflight && !preflight.canSubmit
+                  ? "Resolve blockers in pre-flight first"
+                  : undefined
+              }
             >
               Submit to accountant / GM
             </Button>

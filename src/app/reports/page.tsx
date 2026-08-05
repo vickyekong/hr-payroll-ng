@@ -134,14 +134,24 @@ export default function ReportsPage() {
             </div>
           </div>
           {data?.hasData && (
-            <Button variant="outline" size="sm" asChild>
-              <a
-                href={`/api/reports/remittances/export?month=${month}&year=${year}`}
-                download
-              >
-                Export remittances CSV
-              </a>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={`/api/reports/remittances/export?month=${month}&year=${year}`}
+                  download
+                >
+                  Export remittances CSV
+                </a>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={`/api/reports/filing-pack?month=${month}&year=${year}`}
+                  download
+                >
+                  Download filing pack (ZIP)
+                </a>
+              </Button>
+            </div>
           )}
         </div>
       </div>

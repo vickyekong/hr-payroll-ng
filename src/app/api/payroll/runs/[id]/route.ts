@@ -8,6 +8,7 @@ import {
 } from "@/lib/payroll/run-service";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
 import { notifyPayrollSubmitted } from "@/lib/notifications";
+import { getPayrollPreflight } from "@/lib/payroll/preflight";
 import { z } from "zod";
 
 const actionSchema = z.object({
@@ -165,6 +166,20 @@ export async function PATCH(
           return NextResponse.json(
             { error: "Cannot submit an empty payroll run. Recalculate first." },
             { status: 400 }
+          );
+        }
+        const preflight = await getPayrollPreflight(
+          session.user.companyId,
+          run.id
+        );
+        if (!preflight.canSubmit) {
+          return NextResponse.json(
+            {
+              error:
+                "Pre-flight blocked submit. Fix blockers before sending to accountant / GM.",
+              preflight,
+            },
+            { status: 422 }
           );
         }
         update = { status: "UNDER_REVIEW" };
