@@ -134,6 +134,7 @@ export default async function DashboardPage() {
         periodLabel={intelligence.period.label}
         stats={intelligence.stats}
         insights={intelligence.insights}
+        riskSignals={intelligence.riskSignals}
         watchlist={intelligence.watchlist}
         departmentHealth={intelligence.departmentHealth}
       />

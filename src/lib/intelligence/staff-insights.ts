@@ -1,6 +1,14 @@
-import { startOfMonth, endOfMonth, differenceInMonths } from "date-fns";
+import { startOfMonth, endOfMonth, differenceInMonths, subMonths } from "date-fns";
 import { prisma } from "@/lib/db";
 import { formatCurrency, getMonthName } from "@/lib/utils";
+import {
+  detectDepartmentPressure,
+  detectEarlyAttritionRisk,
+  detectLeaveSpike,
+  riskSignalsToInsights,
+  type DeptMonthStats,
+  type RiskSignal,
+} from "@/lib/intelligence/risk-signals";
 
 export type InsightSeverity = "critical" | "watch" | "info" | "good";
 
@@ -56,12 +64,16 @@ export async function getStaffIntelligence(companyId: string) {
   const year = now.getFullYear();
   const periodStart = startOfMonth(new Date(year, month - 1, 1));
   const periodEnd = endOfMonth(periodStart);
+  const priorStart = startOfMonth(subMonths(periodStart, 1));
+  const priorEnd = endOfMonth(priorStart);
 
   const [
     employees,
     attendanceDays,
+    priorAttendanceDays,
     pendingLeaveRows,
     leaveThisMonth,
+    leavePriorMonth,
     latestPayroll,
     hrDeskOpen,
     departments,
@@ -98,6 +110,17 @@ export async function getStaffIntelligence(companyId: string) {
         penaltyKobo: true,
       },
     }),
+    prisma.attendanceDay.findMany({
+      where: {
+        companyId,
+        workDate: { gte: priorStart, lte: priorEnd },
+        status: { not: "OFF" },
+      },
+      select: {
+        employeeId: true,
+        status: true,
+      },
+    }),
     prisma.leaveRequest.findMany({
       where: {
         status: "PENDING",
@@ -108,11 +131,20 @@ export async function getStaffIntelligence(companyId: string) {
     prisma.leaveRequest.findMany({
       where: {
         employee: { companyId },
-        status: "APPROVED",
+        status: { in: ["APPROVED", "PENDING"] },
         startDate: { lte: periodEnd },
         endDate: { gte: periodStart },
       },
-      select: { employeeId: true, days: true, type: true },
+      select: { employeeId: true, days: true, type: true, status: true },
+    }),
+    prisma.leaveRequest.findMany({
+      where: {
+        employee: { companyId },
+        status: { in: ["APPROVED", "PENDING"] },
+        startDate: { lte: priorEnd },
+        endDate: { gte: priorStart },
+      },
+      select: { employeeId: true },
     }),
     prisma.payrollRun.findFirst({
       where: { companyId, status: { in: ["APPROVED", "PAID"] } },
@@ -426,6 +458,79 @@ export async function getStaffIntelligence(companyId: string) {
     });
   }
 
+  // —— Phase 2 risk signals (burnout / attrition / leave spike) ——
+  function buildDeptStats(
+    days: Array<{ employeeId: string; status: string }>
+  ): DeptMonthStats[] {
+    const byDept = new Map<string, DeptMonthStats>();
+    const empDept = new Map(
+      employees.map((e) => [e.id, e.department || "Unassigned"])
+    );
+    const headcounts = new Map<string, number>();
+    for (const e of employees) {
+      if (e.status === "FIRED") continue;
+      const d = e.department || "Unassigned";
+      headcounts.set(d, (headcounts.get(d) ?? 0) + 1);
+    }
+    for (const day of days) {
+      const dept = empDept.get(day.employeeId) ?? "Unassigned";
+      const row = byDept.get(dept) ?? {
+        department: dept,
+        headcount: headcounts.get(dept) ?? 0,
+        absentDays: 0,
+        lateDays: 0,
+        scheduledDays: 0,
+      };
+      row.scheduledDays += 1;
+      if (day.status === "ABSENT") row.absentDays += 1;
+      if (day.status === "LATE" || day.status === "PARTIAL") row.lateDays += 1;
+      byDept.set(dept, row);
+    }
+    // Ensure depts with headcount but no attendance still appear when current has data
+    for (const [dept, hc] of headcounts) {
+      if (!byDept.has(dept) && hc > 0) {
+        byDept.set(dept, {
+          department: dept,
+          headcount: hc,
+          absentDays: 0,
+          lateDays: 0,
+          scheduledDays: 0,
+        });
+      }
+    }
+    return Array.from(byDept.values());
+  }
+
+  const riskSignals: RiskSignal[] = [
+    ...detectDepartmentPressure(
+      buildDeptStats(attendanceDays),
+      buildDeptStats(priorAttendanceDays)
+    ),
+    ...detectEarlyAttritionRisk(
+      active.map((e) => {
+        const att = attByEmp.get(e.id);
+        return {
+          employeeId: e.id,
+          employeeCode: e.employeeCode,
+          name: `${e.firstName} ${e.lastName}`,
+          department: e.department,
+          startDate: e.startDate,
+          absentDays: att?.absent ?? 0,
+          lateDays: (att?.late ?? 0) + (att?.partial ?? 0),
+          scheduledDays: att?.scheduled ?? 0,
+        };
+      })
+    ),
+  ];
+
+  const leaveSpike = detectLeaveSpike(
+    leaveThisMonth.length,
+    leavePriorMonth.length
+  );
+  if (leaveSpike) riskSignals.push(leaveSpike);
+
+  insights.unshift(...riskSignalsToInsights(riskSignals));
+
   const severityOrder: Record<InsightSeverity, number> = {
     critical: 0,
     watch: 1,
@@ -435,6 +540,14 @@ export async function getStaffIntelligence(companyId: string) {
   insights.sort(
     (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
   );
+
+  const riskBrief =
+    riskSignals.length > 0
+      ? `${riskSignals.length} risk signal(s): ${riskSignals
+          .slice(0, 2)
+          .map((r) => r.title)
+          .join("; ")}${riskSignals.length > 2 ? "…" : ""}.`
+      : "No elevated burnout or attrition risk signals this month.";
 
   const briefingLines = [
     `As of ${getMonthName(month)} ${year}, you have ${employees.length} staff records (${active.length} active) across ${departments.length || deptMap.size} departments.`,
@@ -447,6 +560,7 @@ export async function getStaffIntelligence(companyId: string) {
     watchlist.length
       ? `${watchlist.length} staff flagged for follow-up (absences, setup gaps, or status).`
       : "No staff currently on the intelligence watchlist.",
+    riskBrief,
   ];
 
   const wageBillBasic = active.reduce((s, e) => s + e.basicSalaryKobo, 0n);
@@ -479,9 +593,13 @@ export async function getStaffIntelligence(companyId: string) {
       missingShifts: missingShift,
       monthlyBasicWageBillKobo: wageBillBasic.toString(),
       monthlyGrossishWageBillKobo: wageBillGrossish.toString(),
-      approvedLeaveDaysThisMonth: leaveThisMonth.reduce((s, l) => s + l.days, 0),
+      approvedLeaveDaysThisMonth: leaveThisMonth
+        .filter((l) => l.status === "APPROVED")
+        .reduce((s, l) => s + l.days, 0),
+      riskSignalCount: riskSignals.length,
     },
-    insights: insights.slice(0, 10),
+    insights: insights.slice(0, 12),
+    riskSignals: riskSignals.slice(0, 8),
     watchlist: watchlist.slice(0, 15),
     departmentHealth: departmentHealth.slice(0, 12),
   };

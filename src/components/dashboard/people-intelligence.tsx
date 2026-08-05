@@ -4,6 +4,7 @@ import type {
   StaffInsight,
   StaffWatchItem,
 } from "@/lib/intelligence/staff-insights";
+import type { RiskSignal } from "@/lib/intelligence/risk-signals";
 import { formatCurrency } from "@/lib/utils";
 
 function severityStyles(severity: StaffInsight["severity"]) {
@@ -19,11 +20,25 @@ function severityStyles(severity: StaffInsight["severity"]) {
   }
 }
 
+function riskKindLabel(kind: RiskSignal["kind"]) {
+  switch (kind) {
+    case "burnout":
+      return "Burnout";
+    case "attrition":
+      return "Attrition";
+    case "leave_spike":
+      return "Leave spike";
+    default:
+      return "Dept pressure";
+  }
+}
+
 export function PeopleIntelligencePanel({
   briefing,
   periodLabel,
   stats,
   insights,
+  riskSignals = [],
   watchlist,
   departmentHealth,
 }: {
@@ -42,8 +57,10 @@ export function PeopleIntelligencePanel({
     approvedLeaveDaysThisMonth: number;
     contractStaff: number;
     activeStaff: number;
+    riskSignalCount?: number;
   };
   insights: StaffInsight[];
+  riskSignals?: RiskSignal[];
   watchlist: StaffWatchItem[];
   departmentHealth: DepartmentHealth[];
 }) {
@@ -55,16 +72,20 @@ export function PeopleIntelligencePanel({
             People intelligence
           </h2>
           <p className="text-sm text-stone-500">
-            Auto stats and recommendations from staff, attendance, leave,
-            payroll, and HR Desk · {periodLabel}
+            Auto stats, risk signals, and recommendations · {periodLabel}
           </p>
         </div>
-        <Link
-          href="/employees"
-          className="text-sm text-stone-600 hover:text-stone-900"
-        >
-          Open staff directory →
-        </Link>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <Link href="/reports" className="text-stone-600 hover:text-stone-900">
+            Equity & forecast →
+          </Link>
+          <Link
+            href="/employees"
+            className="text-stone-600 hover:text-stone-900"
+          >
+            Staff directory →
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-lg border border-stone-200 bg-stone-900 px-5 py-4 text-stone-50">
@@ -73,6 +94,49 @@ export function PeopleIntelligencePanel({
         </p>
         <p className="mt-2 text-sm leading-relaxed text-stone-100">{briefing}</p>
       </div>
+
+      {riskSignals.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60">
+          <div className="border-b border-amber-100 px-4 py-3">
+            <h3 className="text-sm font-semibold text-stone-900">
+              Risk signals
+            </h3>
+            <p className="text-xs text-stone-600">
+              Rule-based burnout, leave-spike, and early attrition warnings
+            </p>
+          </div>
+          <ul className="divide-y divide-amber-100">
+            {riskSignals.map((r) => (
+              <li key={r.id} className="px-4 py-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                      {riskKindLabel(r.kind)} · {r.severity}
+                    </p>
+                    <p className="mt-0.5 text-sm font-medium text-stone-900">
+                      {r.title}
+                    </p>
+                    <p className="mt-0.5 text-sm text-stone-600">{r.detail}</p>
+                    {r.href && (
+                      <Link
+                        href={r.href}
+                        className="mt-1 inline-block text-xs font-medium text-stone-800 hover:underline"
+                      >
+                        Review →
+                      </Link>
+                    )}
+                  </div>
+                  {r.metric && (
+                    <span className="text-sm font-semibold tabular-nums text-stone-800">
+                      {r.metric}
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
@@ -90,13 +154,13 @@ export function PeopleIntelligencePanel({
         </div>
         <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
           <p className="text-xs uppercase tracking-wide text-stone-500">
-            Attendance penalties
+            Risk signals
           </p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">
-            {formatCurrency(BigInt(stats.attendancePenaltyKobo || "0"))}
+            {stats.riskSignalCount ?? riskSignals.length}
           </p>
           <p className="mt-1 text-xs text-stone-500">
-            From compiled missed shifts
+            Burnout / attrition / leave patterns
           </p>
         </div>
         <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">

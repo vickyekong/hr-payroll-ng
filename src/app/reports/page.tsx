@@ -24,6 +24,8 @@ import {
   TableCurrency,
 } from "@/components/ui/table";
 import { formatCurrency, getMonthName } from "@/lib/utils";
+import { PayEquitySection } from "@/components/reports/pay-equity-section";
+import { PayrollForecastSection } from "@/components/reports/payroll-forecast-section";
 
 interface ReportData {
   hasData: boolean;
@@ -99,7 +101,7 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-2xl font-semibold text-stone-900">Reports</h1>
           <p className="mt-1 text-sm text-stone-500">
-            Payroll costs, remittances, and YTD earnings
+            Payroll costs, remittances, pay equity, and hire forecasting
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
@@ -328,6 +330,9 @@ export default function ReportsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <PayEquitySection />
+      <PayrollForecastSection />
     </AppShell>
   );
 }
