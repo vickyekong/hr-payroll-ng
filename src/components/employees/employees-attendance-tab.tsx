@@ -218,9 +218,10 @@ export function EmployeesAttendanceTab() {
           Clock machine attendance
         </h2>
         <p className="mt-1 text-sm text-stone-500">
-          Upload the CSV from your biometric / clock-in machine. The system
-          matches each badge ID to staff, compiles shifts for the month, and
-          builds the attendance report below.
+          Upload a CSV, PDF, or Excel export from your biometric / clock-in
+          machine (including Time Card reports). The system matches each badge
+          ID to staff, compiles shifts for the month, and builds the attendance
+          report below.
         </p>
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -248,11 +249,11 @@ export function EmployeesAttendanceTab() {
             />
           </div>
           <div className="min-w-[14rem] flex-1">
-            <Label htmlFor="clockFile">Machine export (CSV)</Label>
+            <Label htmlFor="clockFile">Machine export (CSV, PDF, Excel)</Label>
             <Input
               id="clockFile"
               type="file"
-              accept=".csv,.txt,.tsv"
+              accept=".csv,.txt,.tsv,.pdf,.xlsx,.xls,text/csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="mt-1"
               disabled={loading}
               onChange={(e) => {

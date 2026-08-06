@@ -7,19 +7,24 @@ import {
   isWorkDay,
   parseClockMachineCsv,
   shiftDurationMinutes,
+  type ParsedPunchRow,
 } from "@/lib/attendance/parse-clock-csv";
 
 function dateKey(d: Date): string {
   return startOfDay(d).toISOString().slice(0, 10);
 }
 
-export async function importPunchesFromCsv(options: {
+export async function importPunches(options: {
   companyId: string;
-  csvText: string;
+  rows: ParsedPunchRow[];
+  parseErrors?: string[];
+  source?: string;
   importBatch?: string;
 }) {
-  const { rows, errors } = parseClockMachineCsv(options.csvText);
+  const rows = options.rows;
+  const errors = options.parseErrors ?? [];
   const batch = options.importBatch ?? `imp_${Date.now()}`;
+  const source = options.source ?? "CSV_IMPORT";
 
   const employees = await prisma.employee.findMany({
     where: { companyId: options.companyId, clockDeviceId: { not: null } },
@@ -59,7 +64,7 @@ export async function importPunchesFromCsv(options: {
           employeeId,
           punchedAt: row.punchedAt,
           punchType: row.punchType,
-          source: "CSV_IMPORT",
+          source,
           importBatch: batch,
           rawLine: row.rawLine,
         },
@@ -83,7 +88,23 @@ export async function importPunchesFromCsv(options: {
     unmapped: imported - mapped,
     skipped,
     parseErrors: errors.slice(0, 20),
+    source,
   };
+}
+
+export async function importPunchesFromCsv(options: {
+  companyId: string;
+  csvText: string;
+  importBatch?: string;
+}) {
+  const { rows, errors } = parseClockMachineCsv(options.csvText);
+  return importPunches({
+    companyId: options.companyId,
+    rows,
+    parseErrors: errors,
+    source: "CSV_IMPORT",
+    importBatch: options.importBatch,
+  });
 }
 
 export async function compileAttendancePeriod(options: {

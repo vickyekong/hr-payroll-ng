@@ -5,6 +5,7 @@ import {
   parseClockMachineCsv,
   shiftDurationMinutes,
 } from "@/lib/attendance/parse-clock-csv";
+import { parseTimecardText } from "@/lib/attendance/parse-timecard-text";
 
 describe("parseClockMachineCsv", () => {
   it("parses ZKTeco-style header export", () => {
@@ -19,6 +20,46 @@ describe("parseClockMachineCsv", () => {
     expect(rows[0].deviceUserId).toBe("001");
     expect(rows[0].punchType).toBe("IN");
     expect(rows[2].punchType).toBe("IN");
+  });
+});
+
+describe("parseTimecardText", () => {
+  it("parses single-line Time Card rows with multiple punches", () => {
+    const text = `Time Card
+Start Date 2026-07-01 End Date 2026-07-31
+100\tAmadi\tFloor staff\t2026-07-11\t2\t01:24:28,22:27:16
+101\tOdey\tFloor staff\t2026-07-08\t1\t22:07:53
+`;
+    const { rows, errors } = parseTimecardText(text);
+    expect(errors).toHaveLength(0);
+    expect(rows).toHaveLength(3);
+    expect(rows[0].deviceUserId).toBe("100");
+    expect(rows[0].punchedAt.getHours()).toBe(1);
+    expect(rows[0].punchedAt.getMinutes()).toBe(24);
+    expect(rows[1].deviceUserId).toBe("100");
+    expect(rows[2].deviceUserId).toBe("101");
+  });
+
+  it("parses multi-line PDF-style blocks", () => {
+    const text = [
+      "100",
+      "Amadi",
+      "Floor staff",
+      "2026-07-07",
+      "1",
+      "17:02:30",
+      "100",
+      "Amadi",
+      "Floor staff",
+      "2026-07-09",
+      "1",
+      "23:00:22",
+    ].join("\n");
+    const { rows, errors } = parseTimecardText(text);
+    expect(errors).toHaveLength(0);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].deviceUserId).toBe("100");
+    expect(rows[1].punchedAt.getHours()).toBe(23);
   });
 });
 

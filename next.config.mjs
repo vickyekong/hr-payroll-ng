@@ -11,7 +11,12 @@ const nextConfig = {
   },
   experimental: {
     // Avoid bundling the massive googleapis package into the server build.
-    serverComponentsExternalPackages: ["googleapis", "google-auth-library"],
+    serverComponentsExternalPackages: [
+      "googleapis",
+      "google-auth-library",
+      "pdf-parse",
+      "xlsx",
+    ],
   },
 };
 
