@@ -2,11 +2,12 @@ import type { UserRole } from "@prisma/client";
 
 /**
  * Two similar logins — both run people, payroll, leave, desk, and reports.
- * Super Admin also clears sensitive actions and company settings:
+ * Super Admin also clears sensitive actions:
  *   - approve payroll (after HR submits)
  *   - approve sensitive staff change requests
- *   - statutory rates / company Settings
+ *   - statutory rates (tax / pension config)
  *
+ * Both Super Admin and HR can open Settings (e.g. Google Workspace).
  * FINANCE / EMPLOYEE remain in the DB enum for legacy rows but are not
  * first-class portals (blocked at login).
  */
@@ -32,7 +33,9 @@ export function hasMinRole(userRole: UserRole, requiredRole: UserRole): boolean 
 }
 
 export const PERMISSIONS = {
-  manageCompanySettings: ["SUPER_ADMIN"] as UserRole[],
+  /** Settings page + Google Workspace / company integrations */
+  manageCompanySettings: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
+  /** PAYE bands and statutory rates — Super Admin only */
   manageStatutoryRates: ["SUPER_ADMIN"] as UserRole[],
   manageEmployees: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
   runPayroll: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],

@@ -9,20 +9,23 @@ import { Suspense } from "react";
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
-  if (!can(session!.user.role, "manageStatutoryRates")) {
+  if (!session?.user?.role || !can(session.user.role, "manageCompanySettings")) {
     redirect("/dashboard");
   }
+
+  const canEditStatutory = can(session.user.role, "manageStatutoryRates");
 
   return (
     <AppShell>
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-stone-900">Settings</h1>
         <p className="mt-1 text-sm text-stone-500">
-          Statutory rates, PAYE tax bands, and Google Workspace sync — Super Admin
-          only
+          {canEditStatutory
+            ? "Statutory rates, PAYE tax bands, and Google Workspace sync"
+            : "Google Workspace sync and company integrations — statutory rates are Super Admin only"}
         </p>
       </div>
-      <SettingsForm />
+      {canEditStatutory && <SettingsForm />}
       <Suspense fallback={null}>
         <GoogleDriveSettings />
       </Suspense>

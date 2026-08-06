@@ -135,7 +135,7 @@ function NavPanel({
             </Link>
           );
         })}
-        {role && can(role, "manageStatutoryRates") && (
+        {role && can(role, "manageCompanySettings") && (
           <Link
             href="/settings"
             onClick={onNavigate}
