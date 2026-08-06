@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   displayName,
+  findIdentityGaps,
   isOmittedOrPlaceholderName,
   isPlaceholderLabel,
   inspectEmployeeRecord,
 } from "@/lib/employees/data-quality";
-import { detectIdentityDataGaps } from "@/lib/payroll/preflight";
 
 describe("omitted / placeholder names", () => {
   it("flags empty, N/A, Unknown, Test, and single initials", () => {
@@ -44,8 +44,8 @@ describe("omitted / placeholder names", () => {
     expect(issues.some((i) => i.code === "PLACEHOLDER_JOB_TITLE")).toBe(true);
   });
 
-  it("preflight blocks omitted names on payroll", () => {
-    const exceptions = detectIdentityDataGaps([
+  it("finds identity gaps for payroll", () => {
+    const gaps = findIdentityGaps([
       {
         id: "1",
         employeeCode: "E9",
@@ -55,8 +55,8 @@ describe("omitted / placeholder names", () => {
         jobTitle: "Clerk",
       },
     ]);
-    expect(exceptions.some((e) => e.code === "OMITTED_NAME")).toBe(true);
-    expect(exceptions[0].severity).toBe("block");
+    expect(gaps.some((e) => e.code === "OMITTED_NAME")).toBe(true);
+    expect(gaps[0].severity).toBe("block");
   });
 
   it("treats blank department as placeholder", () => {
