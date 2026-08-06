@@ -3,13 +3,33 @@ import { prisma } from "@/lib/db";
 import { requirePermission, handleApiError } from "@/lib/api-auth";
 import { nairaToKobo } from "@/lib/money";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
+import {
+  isOmittedOrPlaceholderName,
+  isPlaceholderLabel,
+} from "@/lib/employees/data-quality";
 import { z } from "zod";
 
+const realName = (label: string) =>
+  z
+    .string()
+    .min(1)
+    .refine((v) => !isOmittedOrPlaceholderName(v), {
+      message: `${label} cannot be blank or a placeholder (N/A, Unknown, Test, …)`,
+    });
+
+const realLabel = (label: string) =>
+  z
+    .string()
+    .min(1)
+    .refine((v) => !isPlaceholderLabel(v), {
+      message: `${label} cannot be blank or a placeholder`,
+    });
+
 const updateSchema = z.object({
-  firstName: z.string().min(1).optional(),
-  lastName: z.string().min(1).optional(),
-  department: z.string().min(1).optional(),
-  jobTitle: z.string().min(1).optional(),
+  firstName: realName("First name").optional(),
+  lastName: realName("Last name").optional(),
+  department: realLabel("Department").optional(),
+  jobTitle: realLabel("Job title").optional(),
   status: z
     .enum(["ACTIVE", "SUSPENDED", "ON_LEAVE", "SICK_LEAVE", "FIRED"])
     .optional(),

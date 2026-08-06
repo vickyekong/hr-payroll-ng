@@ -9,6 +9,11 @@ import {
   type DeptMonthStats,
   type RiskSignal,
 } from "@/lib/intelligence/risk-signals";
+import {
+  displayName,
+  isOmittedOrPlaceholderName,
+  isPlaceholderLabel,
+} from "@/lib/employees/data-quality";
 
 export type InsightSeverity = "critical" | "watch" | "info" | "good";
 
@@ -47,11 +52,13 @@ export interface DepartmentHealth {
 function scoreFlags(flags: string[]): number {
   let score = 0;
   for (const f of flags) {
-    if (f.includes("missed")) score += 25;
+    if (f.includes("omitted") || f.includes("placeholder")) score += 30;
+    else if (f.includes("missed")) score += 25;
     else if (f.includes("late")) score += 10;
     else if (f.includes("leave")) score += 8;
     else if (f.includes("clock")) score += 12;
     else if (f.includes("shift")) score += 12;
+    else if (f.includes("department") || f.includes("job title")) score += 10;
     else if (f.includes("suspended") || f.includes("sick")) score += 15;
     else score += 5;
   }
@@ -240,6 +247,18 @@ export async function getStaffIntelligence(companyId: string) {
     if (onBooks && e.status === "ACTIVE" && !e.shiftAssignment) {
       flags.push("no shift assigned");
     }
+    if (isOmittedOrPlaceholderName(e.firstName)) {
+      flags.push("omitted first name");
+    }
+    if (isOmittedOrPlaceholderName(e.lastName)) {
+      flags.push("omitted last name");
+    }
+    if (isPlaceholderLabel(e.department)) {
+      flags.push("department missing");
+    }
+    if (isPlaceholderLabel(e.jobTitle)) {
+      flags.push("job title missing");
+    }
     if (absentDays >= 3) flags.push(`${absentDays} missed shifts this month`);
     else if (absentDays > 0) flags.push(`${absentDays} missed shift(s)`);
     if (lateDays >= 5) flags.push(`${lateDays} late/partial days`);
@@ -259,7 +278,7 @@ export async function getStaffIntelligence(companyId: string) {
       watchlist.push({
         employeeId: e.id,
         employeeCode: e.employeeCode,
-        name: `${e.firstName} ${e.lastName}`,
+        name: displayName(e.firstName, e.lastName, e.employeeCode),
         department: e.department,
         score: scoreFlags(flags),
         flags,
@@ -282,6 +301,12 @@ export async function getStaffIntelligence(companyId: string) {
   const missingClock = active.filter((e) => !e.clockDeviceId).length;
   const missingShift = active.filter((e) => !e.shiftAssignment).length;
   const missingSex = employees.filter((e) => !e.sex && e.status !== "FIRED").length;
+  const omittedNames = employees.filter(
+    (e) =>
+      e.status !== "FIRED" &&
+      (isOmittedOrPlaceholderName(e.firstName) ||
+        isOmittedOrPlaceholderName(e.lastName))
+  );
 
   // Department health
   const deptMap = new Map<
@@ -399,6 +424,25 @@ export async function getStaffIntelligence(companyId: string) {
     });
   }
 
+  if (omittedNames.length > 0) {
+    insights.push({
+      id: "omitted-names",
+      severity: "critical",
+      title: `${omittedNames.length} staff record${omittedNames.length === 1 ? "" : "s"} with omitted or placeholder names`,
+      detail: omittedNames
+        .slice(0, 4)
+        .map(
+          (e) =>
+            `${e.employeeCode}: ${displayName(e.firstName, e.lastName, "—")}`
+        )
+        .join(" · ") +
+        (omittedNames.length > 4 ? ` +${omittedNames.length - 4} more` : "") +
+        ". Fix before payroll submit — blocked in pre-flight.",
+      href: "/employees",
+      metric: String(omittedNames.length),
+    });
+  }
+
   if (missingSex > 0) {
     insights.push({
       id: "data-quality",
@@ -512,7 +556,7 @@ export async function getStaffIntelligence(companyId: string) {
         return {
           employeeId: e.id,
           employeeCode: e.employeeCode,
-          name: `${e.firstName} ${e.lastName}`,
+          name: displayName(e.firstName, e.lastName, e.employeeCode),
           department: e.department,
           startDate: e.startDate,
           absentDays: att?.absent ?? 0,

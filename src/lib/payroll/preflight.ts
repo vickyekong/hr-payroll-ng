@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
+import {
+  displayName,
+  findIdentityGaps,
+} from "@/lib/employees/data-quality";
 
 export type PreflightSeverity = "block" | "warn" | "info";
 
@@ -89,6 +93,28 @@ export function detectDuplicateBankAccounts(
   return exceptions;
 }
 
+export function detectIdentityDataGaps(
+  employees: Array<{
+    id: string;
+    employeeCode: string;
+    firstName: string;
+    lastName: string;
+    department: string;
+    jobTitle: string;
+  }>
+): PreflightException[] {
+  return findIdentityGaps(employees).map((gap) => ({
+    id: `${gap.code.toLowerCase()}-${gap.employeeId}`,
+    severity: gap.severity,
+    code: gap.code,
+    title: gap.title,
+    detail: gap.detail,
+    employeeId: gap.employeeId,
+    employeeCode: gap.employeeCode,
+    href: `/employees/${gap.employeeId}/edit`,
+  }));
+}
+
 export function detectMissingPaymentFields(
   employees: Array<{
     id: string;
@@ -109,7 +135,7 @@ export function detectMissingPaymentFields(
   const exceptions: PreflightException[] = [];
 
   for (const emp of employees) {
-    const name = `${emp.firstName} ${emp.lastName}`;
+    const name = displayName(emp.firstName, emp.lastName, emp.employeeCode);
     const href = `/employees/${emp.id}/edit`;
     const meta = payslipMeta.get(emp.id);
 
@@ -258,6 +284,8 @@ export async function getPayrollPreflight(
               employeeCode: true,
               firstName: true,
               lastName: true,
+              department: true,
+              jobTitle: true,
               bankName: true,
               bankAccountNumber: true,
               tin: true,
@@ -311,7 +339,11 @@ export async function getPayrollPreflight(
   const currentNet = run.payslips.map((p) => ({
     employeeId: p.employeeId,
     employeeCode: p.employee.employeeCode,
-    name: `${p.employee.firstName} ${p.employee.lastName}`,
+    name: displayName(
+      p.employee.firstName,
+      p.employee.lastName,
+      p.employee.employeeCode
+    ),
     netPayKobo: p.netPayKobo,
   }));
 
@@ -320,6 +352,16 @@ export async function getPayrollPreflight(
   );
 
   const exceptions: PreflightException[] = [
+    ...detectIdentityDataGaps(
+      employees.map((e) => ({
+        id: e.id,
+        employeeCode: e.employeeCode,
+        firstName: e.firstName,
+        lastName: e.lastName,
+        department: e.department,
+        jobTitle: e.jobTitle,
+      }))
+    ),
     ...detectDuplicateBankAccounts(employees),
     ...detectMissingPaymentFields(employees, payslipMeta),
     ...detectNetPayVariances(currentNet, priorByEmployee),
