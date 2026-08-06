@@ -21,9 +21,12 @@ export async function getCommandCenterData(companyId: string) {
   const periodMonth = now.getMonth() + 1;
   const periodYear = now.getFullYear();
 
+  // Load heavy trees sequentially so serverless Prisma (often
+  // connection_limit=1) is not starved by nested Promise.all fans.
+  const overview = await getOverviewData(companyId);
+  const intelligence = await getStaffIntelligence(companyId);
+
   const [
-    overview,
-    intelligence,
     pendingChanges,
     openOnboarding,
     openOffboarding,
@@ -31,8 +34,6 @@ export async function getCommandCenterData(companyId: string) {
     missingTin,
     missingRsa,
   ] = await Promise.all([
-    getOverviewData(companyId),
-    getStaffIntelligence(companyId),
     prisma.employeeChangeRequest.count({
       where: { companyId, status: "PENDING" },
     }),

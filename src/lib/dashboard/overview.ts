@@ -4,16 +4,7 @@ import { employeeStatusLabel, employeeSexLabel } from "@/lib/employees/status";
 export type ChartSlice = { name: string; value: number; key: string };
 
 export async function getOverviewData(companyId: string) {
-  const [
-    employees,
-    payrollRuns,
-    pendingLeave,
-    pendingApprovals,
-    latestPaidRun,
-    unreadNotifications,
-    departments,
-    pendingHrDesk,
-  ] = await Promise.all([
+  const [employees, payrollRuns, latestPaidRun] = await Promise.all([
     prisma.employee.findMany({
       where: { companyId },
       select: {
@@ -32,16 +23,25 @@ export async function getOverviewData(companyId: string) {
         _count: { select: { payslips: true } },
       },
     }),
+    prisma.payrollRun.findFirst({
+      where: { companyId, status: { in: ["APPROVED", "PAID"] } },
+      orderBy: [{ periodYear: "desc" }, { periodMonth: "desc" }],
+      include: { payslips: true },
+    }),
+  ]);
+
+  const [
+    pendingLeave,
+    pendingApprovals,
+    unreadNotifications,
+    departments,
+    pendingHrDesk,
+  ] = await Promise.all([
     prisma.leaveRequest.count({
       where: { status: "PENDING", employee: { companyId } },
     }),
     prisma.payrollRun.count({
       where: { companyId, status: "UNDER_REVIEW" },
-    }),
-    prisma.payrollRun.findFirst({
-      where: { companyId, status: { in: ["APPROVED", "PAID"] } },
-      orderBy: [{ periodYear: "desc" }, { periodMonth: "desc" }],
-      include: { payslips: true },
     }),
     prisma.notification.count({
       where: {

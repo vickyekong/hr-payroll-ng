@@ -74,17 +74,7 @@ export async function getStaffIntelligence(companyId: string) {
   const priorStart = startOfMonth(subMonths(periodStart, 1));
   const priorEnd = endOfMonth(priorStart);
 
-  const [
-    employees,
-    attendanceDays,
-    priorAttendanceDays,
-    pendingLeaveRows,
-    leaveThisMonth,
-    leavePriorMonth,
-    latestPayroll,
-    hrDeskOpen,
-    departments,
-  ] = await Promise.all([
+  const [employees, attendanceDays, priorAttendanceDays] = await Promise.all([
     prisma.employee.findMany({
       where: { companyId },
       select: {
@@ -128,6 +118,16 @@ export async function getStaffIntelligence(companyId: string) {
         status: true,
       },
     }),
+  ]);
+
+  const [
+    pendingLeaveRows,
+    leaveThisMonth,
+    leavePriorMonth,
+    latestPayroll,
+    hrDeskOpen,
+    departments,
+  ] = await Promise.all([
     prisma.leaveRequest.findMany({
       where: {
         status: "PENDING",
