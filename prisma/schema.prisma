@@ -55,12 +55,16 @@ enum LeaveRequestStatus {
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  address   String?
-  logoUrl   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  address        String?
+  logoUrl        String?
+  /// Primary accent (hex, e.g. #14919b). Null = OmniPeople lagoon default.
+  brandAccentHex String?
+  /// Sidebar / ink color (hex). Null = OmniPeople ink default.
+  brandInkHex    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   statutoryConfig       StatutoryConfig?
   users                 User[]

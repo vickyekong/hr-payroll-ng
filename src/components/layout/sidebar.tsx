@@ -11,6 +11,7 @@ import {
   portalLabel,
 } from "@/lib/permissions";
 import { PRODUCT_NAME } from "@/lib/brand";
+import { useCompanyBrand } from "@/components/brand/company-brand-provider";
 import type { UserRole } from "@prisma/client";
 import { NotificationsBell } from "@/components/layout/notifications-bell";
 
@@ -70,6 +71,7 @@ function NavPanel({
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { brand } = useCompanyBrand();
   const role = session?.user?.role;
   const portal = role ? effectivePortalRole(role) : null;
 
@@ -92,9 +94,26 @@ function NavPanel({
               ? "HR"
               : "Workspace"}
         </p>
-        <h1 className="font-display mt-2 text-2xl font-semibold tracking-tight text-foam">
-          {PRODUCT_NAME}
-        </h1>
+        <div className="mt-2 flex items-center gap-3">
+          {brand?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={brand.logoUrl}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-lg bg-white/10 object-contain p-0.5"
+            />
+          ) : null}
+          <div className="min-w-0">
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-foam">
+              {PRODUCT_NAME}
+            </h1>
+            {brand?.name ? (
+              <p className="truncate text-xs font-medium text-lagoon-mist/80">
+                {brand.name}
+              </p>
+            ) : null}
+          </div>
+        </div>
         {!compactHeader && (
           <p className="mt-2 text-xs leading-snug text-lagoon-mist/60">
             {portal === "SUPER_ADMIN"
