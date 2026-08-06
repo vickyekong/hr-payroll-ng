@@ -26,6 +26,7 @@ export interface EmployeeTableRow {
   firstName: string;
   lastName: string;
   department: string;
+  jobTitle: string;
   status: EmployeeStatusValue | string;
   sex: EmployeeSexValue | string | null;
   basicSalaryKobo: string | number | bigint;
@@ -41,9 +42,11 @@ function toBigInt(value: string | number | bigint): bigint {
 export function EmployeesTable({
   employees,
   departments,
+  jobDescriptions,
 }: {
   employees: EmployeeTableRow[];
   departments: string[];
+  jobDescriptions: string[];
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(employees);
@@ -55,7 +58,12 @@ export function EmployeesTable({
 
   async function patchEmployee(
     id: string,
-    patch: { status?: string; sex?: string | null; department?: string }
+    patch: {
+      status?: string;
+      sex?: string | null;
+      department?: string;
+      jobTitle?: string;
+    }
   ) {
     setSavingId(id);
     const previous = rows.find((r) => r.id === id);
@@ -93,6 +101,13 @@ export function EmployeesTable({
     ])
   ).sort((a, b) => a.localeCompare(b));
 
+  const jobDescriptionOptions = Array.from(
+    new Set([
+      ...jobDescriptions,
+      ...rows.map((r) => r.jobTitle).filter(Boolean),
+    ])
+  ).sort((a, b) => a.localeCompare(b));
+
   return (
     <div className="rounded-lg border border-stone-200 bg-white">
       <Table>
@@ -101,6 +116,7 @@ export function EmployeesTable({
             <TableHead>ID</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Sex</TableHead>
+            <TableHead>Job description</TableHead>
             <TableHead>Department</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Gross (monthly)</TableHead>
@@ -150,21 +166,43 @@ export function EmployeesTable({
                 </TableCell>
                 <TableCell>
                   <select
+                    aria-label={`Job description for ${emp.employeeCode}`}
+                    className="h-8 min-w-[11rem] rounded-md border border-stone-300 bg-white px-2 text-sm text-stone-800 disabled:opacity-60"
+                    value={emp.jobTitle}
+                    disabled={
+                      savingId === emp.id || jobDescriptionOptions.length === 0
+                    }
+                    onChange={(e) => {
+                      void patchEmployee(emp.id, {
+                        jobTitle: e.target.value,
+                      });
+                    }}
+                  >
+                    {jobDescriptionOptions.length === 0 && (
+                      <option value={emp.jobTitle || ""}>
+                        Add job descriptions above
+                      </option>
+                    )}
+                    {jobDescriptionOptions.map((title) => (
+                      <option key={title} value={title}>
+                        {title}
+                      </option>
+                    ))}
+                  </select>
+                </TableCell>
+                <TableCell>
+                  <select
                     aria-label={`Department for ${emp.employeeCode}`}
                     className="h-8 min-w-[10rem] rounded-md border border-stone-300 bg-white px-2 text-sm text-stone-800 disabled:opacity-60"
                     value={emp.department}
-                    disabled={savingId === emp.id || departmentOptions.length === 0}
+                    disabled={savingId === emp.id}
                     onChange={(e) => {
                       void patchEmployee(emp.id, {
                         department: e.target.value,
                       });
                     }}
                   >
-                    {departmentOptions.length === 0 && (
-                      <option value={emp.department || ""}>
-                        Add departments above
-                      </option>
-                    )}
+                    <option value="">Select…</option>
                     {departmentOptions.map((dept) => (
                       <option key={dept} value={dept}>
                         {dept}

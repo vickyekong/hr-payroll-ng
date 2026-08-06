@@ -32,8 +32,8 @@ const realLabel = (label: string) =>
 const updateSchema = z.object({
   firstName: realName("First name").optional(),
   lastName: realName("Last name").optional(),
-  department: realLabel("Department").optional(),
-  jobTitle: realLabel("Job title").optional(),
+  department: z.string().trim().max(120).optional(),
+  jobTitle: realLabel("Job description").optional(),
   status: z
     .enum(["ACTIVE", "SUSPENDED", "ON_LEAVE", "SICK_LEAVE", "FIRED", "RESIGNED"])
     .optional(),
@@ -101,7 +101,7 @@ export async function PATCH(
       data: {
         ...(body.firstName && { firstName: body.firstName }),
         ...(body.lastName && { lastName: body.lastName }),
-        ...(body.department && { department: body.department }),
+        ...(body.department !== undefined && { department: body.department }),
         ...(body.jobTitle && { jobTitle: body.jobTitle }),
         ...(body.status && { status: body.status }),
         ...(body.sex !== undefined && { sex: body.sex }),

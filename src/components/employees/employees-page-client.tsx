@@ -2,27 +2,29 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { DepartmentsManager } from "@/components/employees/departments-manager";
+import {
+  OrgCatalogManager,
+  type CatalogItem,
+} from "@/components/employees/org-catalog-manager";
 import {
   EmployeesTable,
   type EmployeeTableRow,
 } from "@/components/employees/employees-table";
 import { EmployeesAttendanceTab } from "@/components/employees/employees-attendance-tab";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
-
-interface Department {
-  id: string;
-  name: string;
-}
 
 type TabId = "staff" | "attendance";
 
 export function EmployeesPageClient({
   employees,
   initialDepartments,
+  initialJobDescriptions,
 }: {
   employees: EmployeeTableRow[];
-  initialDepartments: Department[];
+  initialDepartments: CatalogItem[];
+  initialJobDescriptions: CatalogItem[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,10 +32,22 @@ export function EmployeesPageClient({
     searchParams.get("tab") === "attendance" ? "attendance" : "staff";
   const [tab, setTab] = useState<TabId>(initialTab);
   const [departments, setDepartments] = useState(initialDepartments);
+  const [jobDescriptions, setJobDescriptions] = useState(
+    initialJobDescriptions
+  );
+  const [departmentsOpen, setDepartmentsOpen] = useState(false);
 
   useEffect(() => {
     setTab(searchParams.get("tab") === "attendance" ? "attendance" : "staff");
   }, [searchParams]);
+
+  useEffect(() => {
+    setDepartments(initialDepartments);
+  }, [initialDepartments]);
+
+  useEffect(() => {
+    setJobDescriptions(initialJobDescriptions);
+  }, [initialJobDescriptions]);
 
   function selectTab(next: TabId) {
     setTab(next);
@@ -73,14 +87,77 @@ export function EmployeesPageClient({
 
       {tab === "staff" ? (
         <>
-          <DepartmentsManager
-            initialDepartments={initialDepartments}
-            onChange={setDepartments}
-          />
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
+              <CardTitle>Job descriptions</CardTitle>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDepartmentsOpen(true)}
+              >
+                Departments
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <OrgCatalogManager
+                title=""
+                description="Add job descriptions here, then assign them to employees from the table dropdown. You can edit or remove existing ones."
+                itemLabel="job description"
+                items={jobDescriptions}
+                apiBase="/api/job-descriptions"
+                onChange={(next) => {
+                  setJobDescriptions(next);
+                  router.refresh();
+                }}
+              />
+            </CardContent>
+          </Card>
+
           <EmployeesTable
             employees={employees}
             departments={departments.map((d) => d.name)}
+            jobDescriptions={jobDescriptions.map((d) => d.name)}
           />
+
+          {departmentsOpen && (
+            <div
+              className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 sm:items-center"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Departments"
+              onClick={() => setDepartmentsOpen(false)}
+            >
+              <Card
+                className="max-h-[90vh] w-full max-w-lg overflow-y-auto shadow-soft"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <CardTitle>Departments</CardTitle>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDepartmentsOpen(false)}
+                  >
+                    Close
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <OrgCatalogManager
+                    title=""
+                    description="Company departments (Admin, Finance, Floor Staffs, and more). Edit names or add new ones, then assign on each employee row."
+                    itemLabel="department"
+                    items={departments}
+                    apiBase="/api/departments"
+                    onChange={(next) => {
+                      setDepartments(next);
+                      router.refresh();
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </>
       ) : (
         <EmployeesAttendanceTab />

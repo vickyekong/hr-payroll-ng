@@ -10,35 +10,10 @@ import { getGoogleDriveStatus } from "@/lib/google-drive";
 import { EmployeesPageClient } from "@/components/employees/employees-page-client";
 import { OpenLifecycleQueue } from "@/components/employees/lifecycle-queue";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
+import { ensureOrgStructure } from "@/lib/org/ensure-org-structure";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-
-async function ensureDepartmentsFromEmployees(companyId: string) {
-  const [departments, employees] = await Promise.all([
-    prisma.department.findMany({
-      where: { companyId },
-      select: { name: true },
-    }),
-    prisma.employee.findMany({
-      where: { companyId },
-      select: { department: true },
-      distinct: ["department"],
-    }),
-  ]);
-
-  const existingNames = new Set(departments.map((d) => d.name));
-  const missing = employees
-    .map((e) => e.department)
-    .filter((name): name is string => Boolean(name) && !existingNames.has(name));
-
-  if (missing.length > 0) {
-    await prisma.department.createMany({
-      data: missing.map((name) => ({ companyId, name })),
-      skipDuplicates: true,
-    });
-  }
-}
 
 export default async function EmployeesPage() {
   const session = await getServerSession(authOptions);
@@ -49,23 +24,29 @@ export default async function EmployeesPage() {
   const companyId = session.user.companyId;
 
   try {
-    await ensureDepartmentsFromEmployees(companyId);
+    await ensureOrgStructure(companyId);
   } catch (error) {
-    console.error("Department backfill skipped:", error);
+    console.error("Org structure ensure skipped:", error);
   }
 
-  const [employees, driveStatus, allDepartments] = await Promise.all([
-    prisma.employee.findMany({
-      where: { companyId },
-      orderBy: { employeeCode: "asc" },
-    }),
-    getGoogleDriveStatus(companyId),
-    prisma.department.findMany({
-      where: { companyId },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-  ]);
+  const [employees, driveStatus, allDepartments, allJobDescriptions] =
+    await Promise.all([
+      prisma.employee.findMany({
+        where: { companyId },
+        orderBy: { employeeCode: "asc" },
+      }),
+      getGoogleDriveStatus(companyId),
+      prisma.department.findMany({
+        where: { companyId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+      prisma.jobDescription.findMany({
+        where: { companyId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+    ]);
 
   const tableRows = serializeBigInts(employees).map((emp) => ({
     id: emp.id,
@@ -73,6 +54,7 @@ export default async function EmployeesPage() {
     firstName: emp.firstName,
     lastName: emp.lastName,
     department: emp.department,
+    jobTitle: emp.jobTitle,
     status: emp.status,
     sex: emp.sex,
     basicSalaryKobo: emp.basicSalaryKobo,
@@ -104,6 +86,7 @@ export default async function EmployeesPage() {
         <EmployeesPageClient
           employees={tableRows}
           initialDepartments={allDepartments}
+          initialJobDescriptions={allJobDescriptions}
         />
       </Suspense>
     </AppShell>

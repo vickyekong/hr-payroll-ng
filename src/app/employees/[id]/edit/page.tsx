@@ -48,6 +48,9 @@ export default function EditEmployeePage() {
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>(
     []
   );
+  const [jobDescriptions, setJobDescriptions] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [shifts, setShifts] = useState<Array<{ id: string; name: string }>>([]);
   const [department, setDepartment] = useState("");
 
@@ -61,6 +64,10 @@ export default function EditEmployeePage() {
     fetch("/api/departments")
       .then((r) => r.json())
       .then((data) => setDepartments(Array.isArray(data) ? data : []));
+    fetch("/api/job-descriptions")
+      .then((r) => r.json())
+      .then((data) => setJobDescriptions(Array.isArray(data) ? data : []))
+      .catch(() => setJobDescriptions([]));
     fetch("/api/attendance/shifts")
       .then((r) => r.json())
       .then((data) =>
@@ -167,15 +174,38 @@ export default function EditEmployeePage() {
                 />
               </div>
               <div>
+                <Label htmlFor="jobTitle">Job description</Label>
+                <select
+                  id="jobTitle"
+                  name="jobTitle"
+                  defaultValue={employee.jobTitle}
+                  required
+                  className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
+                >
+                  {[
+                    ...new Set([
+                      employee.jobTitle,
+                      ...jobDescriptions.map((d) => d.name),
+                    ]),
+                  ]
+                    .filter(Boolean)
+                    .map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div>
                 <Label htmlFor="department">Department</Label>
                 <select
                   id="department"
                   name="department"
-                  value={department || employee.department}
+                  value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  required
                   className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
                 >
+                  <option value="">Select…</option>
                   {[
                     ...new Set([
                       employee.department,
@@ -189,16 +219,6 @@ export default function EditEmployeePage() {
                       </option>
                     ))}
                 </select>
-              </div>
-              <div>
-                <Label htmlFor="jobTitle">Job title</Label>
-                <Input
-                  id="jobTitle"
-                  name="jobTitle"
-                  defaultValue={employee.jobTitle}
-                  required
-                  className="mt-1"
-                />
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>
