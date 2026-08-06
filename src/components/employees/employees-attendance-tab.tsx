@@ -350,6 +350,10 @@ export function EmployeesAttendanceTab() {
               {getMonthName(month)} {year} · penalty total{" "}
               {formatCurrency(BigInt(summary.penaltyKobo || "0"))}
             </p>
+            <p className="mt-1 text-xs text-stone-400">
+              Management department staff are exempt from attendance penalties.
+              Re-analyse after deploy to clear any older fines.
+            </p>
           </div>
         </div>
         <AttendanceReportCharts

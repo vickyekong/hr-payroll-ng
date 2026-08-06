@@ -9,6 +9,7 @@ import {
   shiftDurationMinutes,
   type ParsedPunchRow,
 } from "@/lib/attendance/parse-clock-csv";
+import { isAttendancePenaltyExempt } from "@/lib/attendance/penalty-exempt";
 
 function dateKey(d: Date): string {
   return startOfDay(d).toISOString().slice(0, 10);
@@ -232,12 +233,15 @@ export async function compileAttendancePeriod(options: {
       let penaltyKobo = 0n;
       if (compiled.status === "ABSENT") {
         absentCount += 1;
-        if (settings.missedShiftPenaltyKobo > 0n) {
-          penaltyKobo = settings.missedShiftPenaltyKobo;
-        } else {
-          penaltyKobo = getDailyRateFromMonthly(employee.basicSalaryKobo);
+        // Management (and other exempt depts) stay visible as absent but are not fined.
+        if (!isAttendancePenaltyExempt(employee.department)) {
+          if (settings.missedShiftPenaltyKobo > 0n) {
+            penaltyKobo = settings.missedShiftPenaltyKobo;
+          } else {
+            penaltyKobo = getDailyRateFromMonthly(employee.basicSalaryKobo);
+          }
+          penaltyTotalKobo += penaltyKobo;
         }
-        penaltyTotalKobo += penaltyKobo;
       }
 
       await prisma.attendanceDay.upsert({
@@ -283,6 +287,22 @@ export async function compileAttendancePeriod(options: {
     }
   }
 
+  // Clear any leftover penalties for Management (e.g. older compiles).
+  const exemptIds = employees
+    .filter((e) => isAttendancePenaltyExempt(e.department))
+    .map((e) => e.id);
+  if (exemptIds.length > 0) {
+    await prisma.attendanceDay.updateMany({
+      where: {
+        companyId: options.companyId,
+        employeeId: { in: exemptIds },
+        workDate: { gte: periodStart, lte: periodEnd },
+        penaltyKobo: { gt: 0 },
+      },
+      data: { penaltyKobo: 0n },
+    });
+  }
+
   return {
     daysCompiled: upserted,
     absentCount,
@@ -323,10 +343,20 @@ export async function applyAttendancePenaltiesToPayroll(options: {
     },
     include: {
       employee: {
-        select: { id: true, firstName: true, lastName: true, employeeCode: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          department: true,
+        },
       },
     },
   });
+
+  const penalizableDays = absentDays.filter(
+    (day) => !isAttendancePenaltyExempt(day.employee.department)
+  );
 
   // Remove previous auto attendance penalties for this run
   await prisma.payrollAdjustment.deleteMany({
@@ -341,7 +371,7 @@ export async function applyAttendancePenaltiesToPayroll(options: {
     { amount: bigint; days: number; code: string; name: string }
   >();
 
-  for (const day of absentDays) {
+  for (const day of penalizableDays) {
     const current = byEmployee.get(day.employeeId) ?? {
       amount: 0n,
       days: 0,
@@ -376,7 +406,7 @@ export async function applyAttendancePenaltiesToPayroll(options: {
 
   return {
     employeesPenalized: created.length,
-    missedShiftDays: absentDays.length,
+    missedShiftDays: penalizableDays.length,
     adjustments: created,
   };
 }

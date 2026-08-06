@@ -6,6 +6,23 @@ import {
   shiftDurationMinutes,
 } from "@/lib/attendance/parse-clock-csv";
 import { parseTimecardText } from "@/lib/attendance/parse-timecard-text";
+import { isAttendancePenaltyExempt } from "@/lib/attendance/penalty-exempt";
+
+describe("isAttendancePenaltyExempt", () => {
+  it("exempts Management department (any casing)", () => {
+    expect(isAttendancePenaltyExempt("Management")).toBe(true);
+    expect(isAttendancePenaltyExempt("management")).toBe(true);
+    expect(isAttendancePenaltyExempt("MANAGEMENT")).toBe(true);
+    expect(isAttendancePenaltyExempt("Senior Management")).toBe(true);
+  });
+
+  it("does not exempt other departments", () => {
+    expect(isAttendancePenaltyExempt("Floor staff")).toBe(false);
+    expect(isAttendancePenaltyExempt("Kitchen")).toBe(false);
+    expect(isAttendancePenaltyExempt("")).toBe(false);
+    expect(isAttendancePenaltyExempt(null)).toBe(false);
+  });
+});
 
 describe("parseClockMachineCsv", () => {
   it("parses ZKTeco-style header export", () => {
