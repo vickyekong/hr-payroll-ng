@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission, handleApiError } from "@/lib/api-auth";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
+import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 
 export async function GET(req: NextRequest) {
   try {
@@ -64,18 +65,22 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
+    const regulatedDays = allDays.filter(
+      (d) => !isShiftAttendanceExempt(d.employee.department)
+    );
+
     const days = status
-      ? allDays.filter((d) => d.status === status)
-      : allDays;
+      ? regulatedDays.filter((d) => d.status === status)
+      : regulatedDays;
 
     const summary = {
-      present: allDays.filter((d) => d.status === "PRESENT").length,
-      late: allDays.filter((d) => d.status === "LATE").length,
-      partial: allDays.filter((d) => d.status === "PARTIAL").length,
-      absent: allDays.filter((d) => d.status === "ABSENT").length,
-      onLeave: allDays.filter((d) => d.status === "ON_LEAVE").length,
-      off: allDays.filter((d) => d.status === "OFF").length,
-      penaltyKobo: allDays
+      present: regulatedDays.filter((d) => d.status === "PRESENT").length,
+      late: regulatedDays.filter((d) => d.status === "LATE").length,
+      partial: regulatedDays.filter((d) => d.status === "PARTIAL").length,
+      absent: regulatedDays.filter((d) => d.status === "ABSENT").length,
+      onLeave: regulatedDays.filter((d) => d.status === "ON_LEAVE").length,
+      off: regulatedDays.filter((d) => d.status === "OFF").length,
+      penaltyKobo: regulatedDays
         .reduce((sum, d) => sum + d.penaltyKobo, 0n)
         .toString(),
     };
@@ -98,7 +103,7 @@ export async function GET(req: NextRequest) {
       }
     >();
 
-    for (const day of allDays) {
+    for (const day of regulatedDays) {
       if (day.status === "OFF") continue;
       const key = day.employee.id;
       const row = staffMap.get(key) ?? {

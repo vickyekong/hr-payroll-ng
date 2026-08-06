@@ -6,21 +6,21 @@ import {
   shiftDurationMinutes,
 } from "@/lib/attendance/parse-clock-csv";
 import { parseTimecardText } from "@/lib/attendance/parse-timecard-text";
-import { isAttendancePenaltyExempt } from "@/lib/attendance/penalty-exempt";
+import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 
-describe("isAttendancePenaltyExempt", () => {
+describe("isShiftAttendanceExempt", () => {
   it("exempts Management department (any casing)", () => {
-    expect(isAttendancePenaltyExempt("Management")).toBe(true);
-    expect(isAttendancePenaltyExempt("management")).toBe(true);
-    expect(isAttendancePenaltyExempt("MANAGEMENT")).toBe(true);
-    expect(isAttendancePenaltyExempt("Senior Management")).toBe(true);
+    expect(isShiftAttendanceExempt("Management")).toBe(true);
+    expect(isShiftAttendanceExempt("management")).toBe(true);
+    expect(isShiftAttendanceExempt("MANAGEMENT")).toBe(true);
+    expect(isShiftAttendanceExempt("Senior Management")).toBe(true);
   });
 
   it("does not exempt other departments", () => {
-    expect(isAttendancePenaltyExempt("Floor staff")).toBe(false);
-    expect(isAttendancePenaltyExempt("Kitchen")).toBe(false);
-    expect(isAttendancePenaltyExempt("")).toBe(false);
-    expect(isAttendancePenaltyExempt(null)).toBe(false);
+    expect(isShiftAttendanceExempt("Floor staff")).toBe(false);
+    expect(isShiftAttendanceExempt("Kitchen")).toBe(false);
+    expect(isShiftAttendanceExempt("")).toBe(false);
+    expect(isShiftAttendanceExempt(null)).toBe(false);
   });
 });
 

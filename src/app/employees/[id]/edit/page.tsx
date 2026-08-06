@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { koboToNaira } from "@/lib/money";
+import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 
 interface EmployeeData {
   id: string;
@@ -47,11 +48,15 @@ export default function EditEmployeePage() {
     []
   );
   const [shifts, setShifts] = useState<Array<{ id: string; name: string }>>([]);
+  const [department, setDepartment] = useState("");
 
   useEffect(() => {
     fetch(`/api/employees/${params.id}`)
       .then((r) => r.json())
-      .then(setEmployee);
+      .then((data: EmployeeData) => {
+        setEmployee(data);
+        setDepartment(data.department ?? "");
+      });
     fetch("/api/departments")
       .then((r) => r.json())
       .then((data) => setDepartments(Array.isArray(data) ? data : []));
@@ -66,6 +71,8 @@ export default function EditEmployeePage() {
       )
       .catch(() => setShifts([]));
   }, [params.id]);
+
+  const shiftExempt = isShiftAttendanceExempt(department);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -82,7 +89,9 @@ export default function EditEmployeePage() {
       sex: form.get("sex") || null,
       employmentType: form.get("employmentType"),
       clockDeviceId: String(form.get("clockDeviceId") || "").trim() || null,
-      shiftId: String(form.get("shiftId") || "") || null,
+      shiftId: shiftExempt
+        ? null
+        : String(form.get("shiftId") || "") || null,
       basicSalary: Number(form.get("basicSalary")),
       housingAllowance: Number(form.get("housingAllowance") || 0),
       transportAllowance: Number(form.get("transportAllowance") || 0),
@@ -161,7 +170,8 @@ export default function EditEmployeePage() {
                 <select
                   id="department"
                   name="department"
-                  defaultValue={employee.department}
+                  value={department || employee.department}
+                  onChange={(e) => setDepartment(e.target.value)}
                   required
                   className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
                 >
@@ -216,19 +226,26 @@ export default function EditEmployeePage() {
               </div>
               <div>
                 <Label htmlFor="shiftId">Shift</Label>
-                <select
-                  id="shiftId"
-                  name="shiftId"
-                  defaultValue={employee.shiftAssignment?.shiftId ?? ""}
-                  className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
-                >
-                  <option value="">No shift</option>
-                  {shifts.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                {shiftExempt ? (
+                  <p className="mt-2 text-sm text-stone-500">
+                    Management is not shift-regulated — no clock-in schedule or
+                    attendance penalties apply.
+                  </p>
+                ) : (
+                  <select
+                    id="shiftId"
+                    name="shiftId"
+                    defaultValue={employee.shiftAssignment?.shiftId ?? ""}
+                    className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
+                  >
+                    <option value="">No shift</option>
+                    {shifts.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div>
                 <Label htmlFor="sex">Sex</Label>

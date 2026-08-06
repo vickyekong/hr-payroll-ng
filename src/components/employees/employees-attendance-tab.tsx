@@ -351,8 +351,8 @@ export function EmployeesAttendanceTab() {
               {formatCurrency(BigInt(summary.penaltyKobo || "0"))}
             </p>
             <p className="mt-1 text-xs text-stone-400">
-              Management department staff are exempt from attendance penalties.
-              Re-analyse after deploy to clear any older fines.
+              Management staff are not shift-regulated (no late/absent scoring or
+              penalties). Re-analyse after deploy to clear older Management rows.
             </p>
           </div>
         </div>

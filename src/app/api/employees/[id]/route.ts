@@ -8,6 +8,7 @@ import {
   isPlaceholderLabel,
 } from "@/lib/employees/data-quality";
 import { startLifecycle } from "@/lib/lifecycle/service";
+import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 import { z } from "zod";
 
 const realName = (label: string) =>
@@ -120,7 +121,14 @@ export async function PATCH(
       },
     });
 
-    if (body.shiftId !== undefined) {
+    const effectiveDepartment = body.department ?? existing.department;
+    const shiftExempt = isShiftAttendanceExempt(effectiveDepartment);
+
+    if (shiftExempt) {
+      await prisma.employeeShiftAssignment.deleteMany({
+        where: { employeeId: params.id },
+      });
+    } else if (body.shiftId !== undefined) {
       if (body.shiftId) {
         const shift = await prisma.shiftTemplate.findFirst({
           where: { id: body.shiftId, companyId: session.user.companyId },

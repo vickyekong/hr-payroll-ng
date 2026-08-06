@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, handleApiError } from "@/lib/api-auth";
+import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -61,6 +62,15 @@ export async function POST(req: NextRequest) {
       });
       if (!employee) {
         return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+      }
+      if (isShiftAttendanceExempt(employee.department)) {
+        return NextResponse.json(
+          {
+            error:
+              "Management staff are not shift-regulated — remove them from shifts.",
+          },
+          { status: 400 }
+        );
       }
       const assignment = await prisma.employeeShiftAssignment.upsert({
         where: { employeeId: body.employeeId },

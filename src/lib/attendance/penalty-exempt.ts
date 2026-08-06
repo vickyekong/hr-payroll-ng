@@ -1,9 +1,12 @@
-/** Departments that never receive attendance (missed-shift) penalties. */
-const EXEMPT_DEPARTMENT_PATTERN = /\bmanagement\b/i;
+/** Departments not regulated by clock-in shifts (no late/absent scoring or penalties). */
+const SHIFT_EXEMPT_DEPARTMENT_PATTERN = /\bmanagement\b/i;
 
-export function isAttendancePenaltyExempt(
+export function isShiftAttendanceExempt(
   department: string | null | undefined
 ): boolean {
   if (!department) return false;
-  return EXEMPT_DEPARTMENT_PATTERN.test(department.trim());
+  return SHIFT_EXEMPT_DEPARTMENT_PATTERN.test(department.trim());
 }
+
+/** @deprecated Prefer isShiftAttendanceExempt — same rule for Management. */
+export const isAttendancePenaltyExempt = isShiftAttendanceExempt;
