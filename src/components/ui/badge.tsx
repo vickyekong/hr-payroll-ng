@@ -59,6 +59,7 @@ export function employeeStatusVariant(
     case "SUSPENDED":
       return "warning";
     case "FIRED":
+    case "RESIGNED":
     case "TERMINATED":
       return "danger";
     default:

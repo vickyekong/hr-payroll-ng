@@ -274,7 +274,7 @@ export async function getStaffIntelligence(companyId: string) {
     const tenureMonths = differenceInMonths(now, e.startDate);
     if (onBooks && tenureMonths < 3) flags.push("new joiner (<3 months)");
 
-    if (flags.length > 0 && e.status !== "FIRED") {
+    if (flags.length > 0 && e.status !== "FIRED" && e.status !== "RESIGNED") {
       watchlist.push({
         employeeId: e.id,
         employeeCode: e.employeeCode,
@@ -300,10 +300,11 @@ export async function getStaffIntelligence(companyId: string) {
 
   const missingClock = active.filter((e) => !e.clockDeviceId).length;
   const missingShift = active.filter((e) => !e.shiftAssignment).length;
-  const missingSex = employees.filter((e) => !e.sex && e.status !== "FIRED").length;
+  const missingSex = employees.filter((e) => !e.sex && e.status !== "FIRED" && e.status !== "RESIGNED").length;
   const omittedNames = employees.filter(
     (e) =>
       e.status !== "FIRED" &&
+      e.status !== "RESIGNED" &&
       (isOmittedOrPlaceholderName(e.firstName) ||
         isOmittedOrPlaceholderName(e.lastName))
   );
@@ -321,7 +322,7 @@ export async function getStaffIntelligence(companyId: string) {
     }
   >();
   for (const e of employees) {
-    if (e.status === "FIRED") continue;
+    if (e.status === "FIRED" || e.status === "RESIGNED") continue;
     const key = e.department || "Unassigned";
     const row = deptMap.get(key) ?? {
       headcount: 0,
@@ -512,7 +513,7 @@ export async function getStaffIntelligence(companyId: string) {
     );
     const headcounts = new Map<string, number>();
     for (const e of employees) {
-      if (e.status === "FIRED") continue;
+      if (e.status === "FIRED" || e.status === "RESIGNED") continue;
       const d = e.department || "Unassigned";
       headcounts.set(d, (headcounts.get(d) ?? 0) + 1);
     }

@@ -20,7 +20,7 @@ export async function runHrAskQuery(
   switch (queryId) {
     case "appraisal-due": {
       const employees = await prisma.employee.findMany({
-        where: { companyId, status: { not: "FIRED" } },
+        where: { companyId, status: { notIn: ["FIRED", "RESIGNED"] } },
         select: {
           id: true,
           employeeCode: true,
@@ -122,7 +122,7 @@ export async function runHrAskQuery(
       // No DOB field — use hire anniversary as proxy labelled clearly
       const month = now.getMonth();
       const employees = await prisma.employee.findMany({
-        where: { companyId, status: { not: "FIRED" } },
+        where: { companyId, status: { notIn: ["FIRED", "RESIGNED"] } },
         select: {
           employeeCode: true,
           firstName: true,

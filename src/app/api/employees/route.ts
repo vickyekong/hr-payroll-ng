@@ -8,6 +8,8 @@ import {
   isPlaceholderLabel,
 } from "@/lib/employees/data-quality";
 import { startLifecycle } from "@/lib/lifecycle/service";
+import { isEmploymentEnded } from "@/lib/employees/status";
+import { ensureEmployeeStatusSchema } from "@/lib/ensure-employee-status-schema";
 import { z } from "zod";
 
 const realName = (label: string) =>
@@ -34,7 +36,7 @@ const employeeSchema = z.object({
   jobTitle: realLabel("Job title"),
   employmentType: z.enum(["FULL_TIME", "CONTRACT"]).default("FULL_TIME"),
   status: z
-    .enum(["ACTIVE", "SUSPENDED", "ON_LEAVE", "SICK_LEAVE", "FIRED"])
+    .enum(["ACTIVE", "SUSPENDED", "ON_LEAVE", "SICK_LEAVE", "FIRED", "RESIGNED"])
     .default("ACTIVE"),
   sex: z.enum(["MALE", "FEMALE"]),
   startDate: z.string(),
@@ -57,6 +59,7 @@ const employeeSchema = z.object({
 export async function GET() {
   try {
     const session = await requirePermission("manageEmployees");
+    await ensureEmployeeStatusSchema();
     const employees = await prisma.employee.findMany({
       where: { companyId: session.user.companyId },
       orderBy: { createdAt: "desc" },
@@ -70,6 +73,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const session = await requirePermission("manageEmployees");
+    await ensureEmployeeStatusSchema();
     const body = employeeSchema.parse(await req.json());
 
     const employee = await prisma.employee.create({
@@ -112,7 +116,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (body.status !== "FIRED") {
+    if (!isEmploymentEnded(body.status)) {
       await startLifecycle({
         companyId: session.user.companyId,
         employeeId: employee.id,

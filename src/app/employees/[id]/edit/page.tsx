@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { koboToNaira } from "@/lib/money";
 import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
+import { EMPLOYEE_STATUS_OPTIONS } from "@/lib/employees/status";
 
 interface EmployeeData {
   id: string;
@@ -207,11 +208,11 @@ export default function EditEmployeePage() {
                   defaultValue={employee.status}
                   className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
                 >
-                  <option value="ACTIVE">Active</option>
-                  <option value="SUSPENDED">Suspended</option>
-                  <option value="ON_LEAVE">Leave</option>
-                  <option value="SICK_LEAVE">Sick leave</option>
-                  <option value="FIRED">Fired</option>
+                  {EMPLOYEE_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

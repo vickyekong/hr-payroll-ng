@@ -75,7 +75,7 @@ const OFFBOARDING_TASKS: Array<{
   {
     key: "STOP_PAYROLL",
     title: "Confirm status excludes from future runs",
-    description: "Employee status should be FIRED / ended",
+    description: "Employee status should be Fired / Resigned / ended",
     href: (id) => `/employees/${id}/edit`,
     sortOrder: 2,
   },
@@ -227,7 +227,7 @@ export async function syncLifecycleTaskHints(lifecycleId: string) {
   if (emp.rsaPin?.trim()) autoDone.add("COLLECT_RSA");
   if (emp.clockDeviceId && emp.shiftAssignment) autoDone.add("ASSIGN_SHIFT");
   if (emp.leaveBalances.length > 0) autoDone.add("LEAVE_BALANCES");
-  if (emp.status === "FIRED") autoDone.add("STOP_PAYROLL");
+  if (emp.status === "FIRED" || emp.status === "RESIGNED") autoDone.add("STOP_PAYROLL");
 
   for (const key of autoDone) {
     await prisma.employeeLifecycleTask.updateMany({

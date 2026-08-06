@@ -20,6 +20,7 @@ enum EmployeeStatus {
   ON_LEAVE
   SICK_LEAVE
   FIRED
+  RESIGNED
 }
 
 enum EmployeeSex {

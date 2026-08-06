@@ -193,7 +193,7 @@ export function inspectEmployeeRecord(emp: {
     }
   }
 
-  if (!emp.sex && emp.status !== "FIRED") {
+  if (!emp.sex && emp.status !== "FIRED" && emp.status !== "RESIGNED") {
     issues.push({
       code: "MISSING_SEX",
       field: "sex",

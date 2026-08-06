@@ -9,6 +9,8 @@ import {
 } from "@/lib/employees/data-quality";
 import { startLifecycle } from "@/lib/lifecycle/service";
 import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
+import { isEmploymentEnded } from "@/lib/employees/status";
+import { ensureEmployeeStatusSchema } from "@/lib/ensure-employee-status-schema";
 import { z } from "zod";
 
 const realName = (label: string) =>
@@ -33,7 +35,7 @@ const updateSchema = z.object({
   department: realLabel("Department").optional(),
   jobTitle: realLabel("Job title").optional(),
   status: z
-    .enum(["ACTIVE", "SUSPENDED", "ON_LEAVE", "SICK_LEAVE", "FIRED"])
+    .enum(["ACTIVE", "SUSPENDED", "ON_LEAVE", "SICK_LEAVE", "FIRED", "RESIGNED"])
     .optional(),
   sex: z.enum(["MALE", "FEMALE"]).nullable().optional(),
   employmentType: z.enum(["FULL_TIME", "CONTRACT"]).optional(),
@@ -60,6 +62,7 @@ export async function GET(
 ) {
   try {
     const session = await requirePermission("manageEmployees");
+    await ensureEmployeeStatusSchema();
     const employee = await prisma.employee.findFirst({
       where: { id: params.id, companyId: session.user.companyId },
       include: {
@@ -83,6 +86,7 @@ export async function PATCH(
 ) {
   try {
     const session = await requirePermission("manageEmployees");
+    await ensureEmployeeStatusSchema();
     const body = updateSchema.parse(await req.json());
 
     const existing = await prisma.employee.findFirst({
@@ -159,7 +163,11 @@ export async function PATCH(
       },
     });
 
-    if (body.status === "FIRED" && existing.status !== "FIRED") {
+    if (
+      body.status &&
+      isEmploymentEnded(body.status) &&
+      !isEmploymentEnded(existing.status)
+    ) {
       await startLifecycle({
         companyId: session.user.companyId,
         employeeId: employee.id,

@@ -4,10 +4,16 @@ export const EMPLOYEE_STATUS_OPTIONS = [
   { value: "ON_LEAVE", label: "Leave" },
   { value: "SICK_LEAVE", label: "Sick leave" },
   { value: "FIRED", label: "Fired" },
+  { value: "RESIGNED", label: "Resigned" },
 ] as const;
 
 export type EmployeeStatusValue =
   (typeof EMPLOYEE_STATUS_OPTIONS)[number]["value"];
+
+/** Staff who have left the company (not on payroll / books). */
+export function isEmploymentEnded(status: string): boolean {
+  return status === "FIRED" || status === "RESIGNED";
+}
 
 export const EMPLOYEE_SEX_OPTIONS = [
   { value: "MALE", label: "Male" },
