@@ -112,4 +112,21 @@ File: `src/components/layout/app-shell.tsx`
 | Property | Class |
 | -------- | ----- |
 | Page bg | `.bg-atmosphere` |
-| Content | `animate-fade-in` |
+| Content | `animate-fade-in px-4 sm:px-6 lg:px-8` |
+| Structure | Desktop sidebar + mobile header/drawer |
+
+---
+
+## Responsive (phones & tablets)
+
+| Breakpoint | Behavior |
+| ---------- | -------- |
+| `< lg` | Sticky top bar + slide-in drawer nav (`MobileNav`) |
+| `≥ lg` | Persistent ink sidebar |
+| Tables | Horizontal scroll, `min-w-[36rem]`, edge bleed on small screens |
+| Payroll wizard steps | Snap-scroll cards on phone; 2-col tablet; 4-col desktop |
+| Command center | 1 → 2 → 3 column cards; full-width Run Payroll CTA on phone |
+| Safe area | Top bar uses `env(safe-area-inset-top)` |
+
+Files: `src/components/layout/sidebar.tsx`, `src/components/layout/app-shell.tsx`
+

@@ -34,7 +34,12 @@ export function RunPayrollCta({ label }: { label: string }) {
   }
 
   return (
-    <Button onClick={() => void start()} disabled={loading} variant="brand">
+    <Button
+      onClick={() => void start()}
+      disabled={loading}
+      variant="brand"
+      className="w-full sm:w-auto"
+    >
       {loading ? "Starting…" : label}
     </Button>
   );

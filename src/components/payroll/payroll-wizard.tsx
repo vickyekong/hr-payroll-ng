@@ -188,12 +188,12 @@ export function PayrollWizard({
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-lagoon">
             Payroll execution wizard
           </p>
-          <h1 className="font-display mt-1 text-3xl font-semibold tracking-tight text-ink">
+          <h1 className="font-display mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
             {getMonthName(run.periodMonth)} {run.periodYear}
           </h1>
         </div>
@@ -202,14 +202,14 @@ export function PayrollWizard({
         </Badge>
       </div>
 
-      <nav className="mb-8 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <nav className="-mx-4 mb-8 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
         {STEPS.map((s) => (
           <button
             key={s.id}
             type="button"
             onClick={() => setStep(s.id)}
             className={cn(
-              "rounded-xl border px-3 py-3 text-left transition-all duration-200 ease-brand",
+              "w-[min(72vw,16rem)] shrink-0 snap-start rounded-xl border px-3 py-3 text-left transition-all duration-200 ease-brand sm:w-auto",
               step === s.id
                 ? "border-ink bg-ink text-foam shadow-soft"
                 : "border-line bg-foam/90 text-ink-soft hover:border-lagoon/35 hover:bg-lagoon-mist/30"
@@ -221,7 +221,7 @@ export function PayrollWizard({
             <p className="mt-1 text-sm font-semibold">{s.title}</p>
             <p
               className={cn(
-                "mt-0.5 text-xs",
+                "mt-0.5 line-clamp-2 text-xs",
                 step === s.id ? "text-lagoon-mist/70" : "text-muted"
               )}
             >

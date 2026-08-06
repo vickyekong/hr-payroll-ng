@@ -3,24 +3,24 @@
 @tailwind utilities;
 
 :root {
-  /* OmniPeople — Lagoon Ink */
-  --ink: #0b2e33;
-  --ink-soft: #163f45;
-  --lagoon: #14919b;
-  --lagoon-deep: #0f737a;
-  --lagoon-mist: #d8f0f2;
-  --mist: #f0f5f4;
-  --foam: #ffffff;
-  --sand: #e4eceb;
-  --line: #c9d6d4;
-  --muted: #5c7270;
-  --signal: #b42318;
-  --ok: #0f766e;
-  --warn: #b45309;
+  /* OmniPeople — Lagoon Ink (RGB channels for Tailwind opacity) */
+  --ink: 11 46 51;
+  --ink-soft: 22 63 69;
+  --lagoon: 20 145 155;
+  --lagoon-deep: 15 115 122;
+  --lagoon-mist: 216 240 242;
+  --mist: 240 245 244;
+  --foam: 255 255 255;
+  --sand: 228 236 235;
+  --line: 201 214 212;
+  --muted: 92 114 112;
+  --signal: 180 35 24;
+  --ok: 15 118 110;
+  --warn: 180 83 9;
 
-  --background: var(--mist);
-  --foreground: var(--ink);
-  --accent: var(--lagoon);
+  --background: rgb(var(--mist));
+  --foreground: rgb(var(--ink));
+  --accent: rgb(var(--lagoon));
   --radius: 0.625rem;
 
   --font-sans: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
@@ -32,6 +32,7 @@ body {
   background: var(--background);
   font-family: var(--font-sans);
   font-feature-settings: "tnum" 1, "ss01" 1;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @layer base {
@@ -46,15 +47,15 @@ body {
   }
 
   .bg-atmosphere {
-    background-color: var(--mist);
+    background-color: rgb(var(--mist));
     background-image:
       radial-gradient(ellipse 80% 50% at 10% -10%, rgba(20, 145, 155, 0.14), transparent 55%),
       radial-gradient(ellipse 60% 40% at 100% 0%, rgba(11, 46, 51, 0.08), transparent 50%),
-      linear-gradient(165deg, #f7fbfa 0%, var(--mist) 45%, #e8f2f1 100%);
+      linear-gradient(165deg, #f7fbfa 0%, rgb(var(--mist)) 45%, #e8f2f1 100%);
   }
 
   .bg-login-atmosphere {
-    background-color: var(--ink);
+    background-color: rgb(var(--ink));
     background-image:
       radial-gradient(ellipse 90% 70% at 80% 10%, rgba(20, 145, 155, 0.35), transparent 55%),
       radial-gradient(ellipse 70% 50% at 0% 100%, rgba(216, 240, 242, 0.12), transparent 50%),

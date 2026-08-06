@@ -18,12 +18,12 @@ export function CommandCenterHero({
 
   return (
     <div className="mb-8 animate-fade-up">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-lagoon">
             {PRODUCT_NAME}
           </p>
-          <h1 className="font-display mt-2 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+          <h1 className="font-display mt-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl md:text-4xl">
             Welcome back, {firstName}
           </h1>
           <p className="mt-2 max-w-xl text-sm text-muted">
@@ -31,10 +31,12 @@ export function CommandCenterHero({
             glance
           </p>
         </div>
-        <RunPayrollCta label={runLabel} />
+        <div className="w-full sm:w-auto">
+          <RunPayrollCta label={runLabel} />
+        </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <section className="surface-panel px-4 py-4 transition duration-300 ease-brand hover:-translate-y-0.5 hover:shadow-soft">
           <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
             Action required ({data.actionCount})
@@ -97,7 +99,7 @@ export function CommandCenterHero({
           )}
         </section>
 
-        <section className="surface-panel px-4 py-4 transition duration-300 ease-brand hover:-translate-y-0.5 hover:shadow-soft">
+        <section className="surface-panel px-4 py-4 transition duration-300 ease-brand hover:-translate-y-0.5 hover:shadow-soft sm:col-span-2 lg:col-span-1">
           <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
             Compliance status
           </p>

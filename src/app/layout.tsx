@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -19,6 +19,13 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: `${PRODUCT_NAME} — People & Payroll`,
   description: PRODUCT_TAGLINE,
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0b2e33",
 };
 
 export default function RootLayout({

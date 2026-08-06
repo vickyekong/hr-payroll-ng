@@ -265,7 +265,7 @@ export default function HrDeskClient() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
-        <div className="max-h-[70vh] overflow-auto rounded-lg border border-stone-200 bg-white">
+        <div className="max-h-[42vh] overflow-auto rounded-xl border border-line/80 bg-foam/95 shadow-soft lg:max-h-[70vh]">
           {messages.length === 0 ? (
             <p className="p-4 text-sm text-stone-500">
               {loading

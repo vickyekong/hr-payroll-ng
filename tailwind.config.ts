@@ -1,5 +1,8 @@
 import type { Config } from "tailwindcss";
 
+const withAlpha = (channel: string) =>
+  `rgb(var(${channel}) / <alpha-value>)`;
+
 const config: Config = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -9,25 +12,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        background: withAlpha("--mist"),
+        foreground: withAlpha("--ink"),
         ink: {
-          DEFAULT: "var(--ink)",
-          soft: "var(--ink-soft)",
+          DEFAULT: withAlpha("--ink"),
+          soft: withAlpha("--ink-soft"),
         },
         lagoon: {
-          DEFAULT: "var(--lagoon)",
-          deep: "var(--lagoon-deep)",
-          mist: "var(--lagoon-mist)",
+          DEFAULT: withAlpha("--lagoon"),
+          deep: withAlpha("--lagoon-deep"),
+          mist: withAlpha("--lagoon-mist"),
         },
-        mist: "var(--mist)",
-        foam: "var(--foam)",
-        sand: "var(--sand)",
-        line: "var(--line)",
-        muted: "var(--muted)",
-        signal: "var(--signal)",
-        ok: "var(--ok)",
-        warn: "var(--warn)",
+        mist: withAlpha("--mist"),
+        foam: withAlpha("--foam"),
+        sand: withAlpha("--sand"),
+        line: withAlpha("--line"),
+        muted: withAlpha("--muted"),
+        signal: withAlpha("--signal"),
+        ok: withAlpha("--ok"),
+        warn: withAlpha("--warn"),
       },
       fontFamily: {
         sans: ["var(--font-manrope)", "Manrope", "ui-sans-serif", "system-ui"],

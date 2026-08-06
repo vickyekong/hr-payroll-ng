@@ -36,7 +36,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden bg-login-atmosphere">
+    <div className="relative flex min-h-screen min-h-dvh overflow-x-hidden bg-login-atmosphere">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-40"
@@ -46,27 +46,27 @@ export default function LoginPage() {
         }}
       />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col justify-center gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-16 lg:px-10">
+      <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col justify-center gap-8 px-4 py-10 sm:gap-10 sm:px-6 sm:py-12 lg:flex-row lg:items-center lg:gap-16 lg:px-10">
         <div className="animate-soft-rise max-w-md text-foam lg:flex-1">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon-mist/70">
             People &amp; payroll
           </p>
-          <h1 className="font-display mt-4 text-5xl font-semibold leading-[1.05] tracking-tight text-foam sm:text-6xl">
+          <h1 className="font-display mt-3 text-4xl font-semibold leading-[1.05] tracking-tight text-foam sm:mt-4 sm:text-5xl md:text-6xl">
             {PRODUCT_NAME}
           </h1>
-          <p className="mt-4 max-w-sm text-base leading-relaxed text-lagoon-mist/75">
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-lagoon-mist/75 sm:mt-4 sm:text-base">
             {PRODUCT_TAGLINE}. HR and Super Admin share one workspace — clearance
             only when money and sensitive data need it.
           </p>
         </div>
 
         <div
-          className="animate-fade-up w-full max-w-sm lg:flex-shrink-0"
+          className="animate-fade-up w-full max-w-sm self-center lg:flex-shrink-0 lg:self-auto"
           style={{ animationDelay: "80ms" }}
         >
           <form
             onSubmit={handleSubmit}
-            className="rounded-xl border border-white/15 bg-foam/95 p-6 shadow-soft backdrop-blur-sm"
+            className="rounded-xl border border-white/15 bg-foam/95 p-5 shadow-soft backdrop-blur-sm sm:p-6"
           >
             <p className="text-sm font-medium text-ink">Sign in</p>
             <p className="mt-1 text-xs text-muted">
