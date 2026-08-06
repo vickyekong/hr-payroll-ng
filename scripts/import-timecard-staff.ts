@@ -1,17 +1,11 @@
-/**
- * Import unique staff from a clock Time Card PDF export into Employees.
- *
- * Usage:
- *   npx tsx scripts/import-timecard-staff.ts
- *
- * Expects scripts/timecard-staff.json (clockDeviceId, firstName, department).
- * PDF only includes a single name field — stored as firstName; lastName mirrors
- * it until HR edits full legal names. Salary left at ₦0 for HR to complete.
- */
 import "dotenv/config";
 import { readFileSync } from "fs";
 import path from "path";
 import { PrismaClient } from "@prisma/client";
+import {
+  normalizeClockDeviceId,
+  staffCodeFromClockId,
+} from "../src/lib/employees/staff-code";
 
 const prisma = new PrismaClient();
 
@@ -45,31 +39,50 @@ async function main() {
   let updated = 0;
 
   for (const row of rows) {
-    const employeeCode = row.clockDeviceId;
+    const clockDeviceId = normalizeClockDeviceId(row.clockDeviceId);
+    const employeeCode = staffCodeFromClockId(clockDeviceId);
     const firstName = row.firstName.trim();
-    // Clock export has one name only — mirror until HR fills legal surname.
     const lastName = firstName;
     const department = row.department.trim();
     const jobTitle = department;
 
-    const existing = await prisma.employee.findUnique({
-      where: {
-        companyId_employeeCode: {
-          companyId: company.id,
-          employeeCode,
+    const existing =
+      (await prisma.employee.findUnique({
+        where: {
+          companyId_employeeCode: {
+            companyId: company.id,
+            employeeCode,
+          },
         },
-      },
-    });
+      })) ??
+      (await prisma.employee.findUnique({
+        where: {
+          companyId_employeeCode: {
+            companyId: company.id,
+            employeeCode: clockDeviceId,
+          },
+        },
+      })) ??
+      (await prisma.employee.findFirst({
+        where: {
+          companyId: company.id,
+          OR: [
+            { clockDeviceId },
+            { clockDeviceId: row.clockDeviceId.trim() },
+          ],
+        },
+      }));
 
     if (existing) {
       await prisma.employee.update({
         where: { id: existing.id },
         data: {
+          employeeCode,
           firstName,
           lastName,
           department,
           jobTitle,
-          clockDeviceId: row.clockDeviceId,
+          clockDeviceId,
           status: "ACTIVE",
         },
       });
@@ -86,7 +99,7 @@ async function main() {
           employmentType: "FULL_TIME",
           status: "ACTIVE",
           startDate: new Date("2026-07-01"),
-          clockDeviceId: row.clockDeviceId,
+          clockDeviceId,
           basicSalaryKobo: 0n,
           housingAllowanceKobo: 0n,
           transportAllowanceKobo: 0n,
@@ -123,6 +136,7 @@ async function main() {
         total: rows.length,
         created,
         updated,
+        exampleCode: staffCodeFromClockId("100"),
       },
       null,
       2
