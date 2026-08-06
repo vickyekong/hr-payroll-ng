@@ -75,6 +75,8 @@ model Company {
   attendancePunches     AttendancePunch[]
   attendanceDays        AttendanceDay[]
   hrDeskMessages        HrDeskMessage[]
+  employeeLifecycles    EmployeeLifecycle[]
+  changeRequests        EmployeeChangeRequest[]
 }
 
 model Department {
@@ -200,6 +202,8 @@ model Employee {
   attendancePunches   AttendancePunch[]
   attendanceDays      AttendanceDay[]
   hrDeskMessages      HrDeskMessage[]
+  lifecycles          EmployeeLifecycle[]
+  changeRequests      EmployeeChangeRequest[]
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -515,5 +519,91 @@ model AttendanceDay {
   @@unique([employeeId, workDate])
   @@index([companyId, workDate, status])
   @@index([companyId, status])
+}
+
+enum LifecycleKind {
+  ONBOARDING
+  OFFBOARDING
+}
+
+enum LifecycleStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum LifecycleTaskStatus {
+  PENDING
+  DONE
+  SKIPPED
+}
+
+model EmployeeLifecycle {
+  id          String          @id @default(cuid())
+  companyId   String
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  kind        LifecycleKind
+  status      LifecycleStatus @default(OPEN)
+  startedAt   DateTime        @default(now())
+  completedAt DateTime?
+  notes       String?
+  tasks       EmployeeLifecycleTask[]
+
+  @@index([companyId, status, kind])
+  @@index([employeeId, kind, status])
+}
+
+model EmployeeLifecycleTask {
+  id            String              @id @default(cuid())
+  lifecycleId   String
+  lifecycle     EmployeeLifecycle   @relation(fields: [lifecycleId], references: [id], onDelete: Cascade)
+  key           String
+  title         String
+  description   String?
+  href          String?
+  status        LifecycleTaskStatus @default(PENDING)
+  sortOrder     Int                 @default(0)
+  completedAt   DateTime?
+  completedById String?
+  createdAt     DateTime            @default(now())
+
+  @@unique([lifecycleId, key])
+  @@index([lifecycleId, status])
+}
+
+enum ChangeRequestType {
+  BANK
+  TAX_RELIEF
+  NEXT_OF_KIN
+  ADDRESS
+}
+
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model EmployeeChangeRequest {
+  id           String              @id @default(cuid())
+  companyId    String
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId   String
+  employee     Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type         ChangeRequestType
+  status       ChangeRequestStatus @default(PENDING)
+  payload      Json
+  note         String?
+  reviewNote   String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([companyId, status, createdAt])
+  @@index([employeeId, status])
 }
 

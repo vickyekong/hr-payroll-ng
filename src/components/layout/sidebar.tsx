@@ -16,6 +16,7 @@ const navItems: Array<{
   { href: "/dashboard", label: "Overview", roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE"] },
   { href: "/employees", label: "Employees", roles: ["SUPER_ADMIN", "HR_ADMIN"] },
   { href: "/hr-desk", label: "HR Desk", roles: ["SUPER_ADMIN", "HR_ADMIN"] },
+  { href: "/hr-ask", label: "HR Ask", roles: ["SUPER_ADMIN", "HR_ADMIN"] },
   { href: "/payroll", label: "Payroll", roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE"] },
   { href: "/leave", label: "Leave", roles: ["SUPER_ADMIN", "HR_ADMIN", "EMPLOYEE"] },
   { href: "/reports", label: "Reports", roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE"] },

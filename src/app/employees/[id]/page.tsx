@@ -12,6 +12,7 @@ import {
   employeeSexLabel,
   employeeStatusLabel,
 } from "@/lib/employees/status";
+import { EmployeeLifecyclePanel } from "@/components/employees/lifecycle-panel";
 
 export default async function EmployeeDetailPage({
   params,
@@ -50,10 +51,17 @@ export default async function EmployeeDetailPage({
         </Badge>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap gap-2">
         <Button asChild variant="outline" size="sm">
           <Link href={`/employees/${employee.id}/edit`}>Edit employee</Link>
         </Button>
+      </div>
+
+      <div className="mb-8">
+        <h2 className="mb-3 text-lg font-semibold text-stone-900">
+          Lifecycle co-pilot
+        </h2>
+        <EmployeeLifecyclePanel employeeId={employee.id} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

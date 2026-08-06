@@ -7,6 +7,7 @@ import {
   isOmittedOrPlaceholderName,
   isPlaceholderLabel,
 } from "@/lib/employees/data-quality";
+import { startLifecycle } from "@/lib/lifecycle/service";
 import { z } from "zod";
 
 const realName = (label: string) =>
@@ -149,6 +150,14 @@ export async function PATCH(
         changes: body,
       },
     });
+
+    if (body.status === "FIRED" && existing.status !== "FIRED") {
+      await startLifecycle({
+        companyId: session.user.companyId,
+        employeeId: employee.id,
+        kind: "OFFBOARDING",
+      });
+    }
 
     return NextResponse.json(serializeBigInts(employee));
   } catch (error) {

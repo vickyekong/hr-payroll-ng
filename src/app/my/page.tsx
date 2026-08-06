@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { getMonthName } from "@/lib/utils";
 import Link from "next/link";
+import { MyChangeRequestsPanel } from "@/components/my/change-requests-panel";
 
 interface Payslip {
   id: string;
@@ -140,6 +141,8 @@ export default function MyPortalPage() {
           </CardContent>
         </Card>
       </div>
+
+      <MyChangeRequestsPanel />
     </AppShell>
   );
 }
