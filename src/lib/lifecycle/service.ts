@@ -53,7 +53,7 @@ const ONBOARDING_TASKS: Array<{
   {
     key: "NOTIFY_FINANCE",
     title: "Notify Finance of new hire",
-    description: "Accountant aware for next payroll run",
+    description: "Finance / Super Admin aware for next payroll run",
     sortOrder: 7,
   },
 ];
@@ -82,7 +82,7 @@ const OFFBOARDING_TASKS: Array<{
   {
     key: "REVOKE_ACCESS",
     title: "Revoke systems access",
-    description: "Email, apps, and portal login disabled",
+    description: "Email, apps, and any company accounts disabled",
     sortOrder: 3,
   },
   {
@@ -302,5 +302,48 @@ export async function getEmployeeLifecycles(
     where: { companyId, employeeId },
     include: { tasks: { orderBy: { sortOrder: "asc" } } },
     orderBy: { startedAt: "desc" },
+  });
+}
+
+/** Open onboarding / offboarding across the company — for HR queue. */
+export async function listOpenLifecycles(companyId: string) {
+  const open = await prisma.employeeLifecycle.findMany({
+    where: { companyId, status: "OPEN" },
+    include: {
+      employee: {
+        select: {
+          id: true,
+          employeeCode: true,
+          firstName: true,
+          lastName: true,
+          department: true,
+          status: true,
+        },
+      },
+      tasks: { orderBy: { sortOrder: "asc" } },
+    },
+    orderBy: [{ kind: "asc" }, { startedAt: "asc" }],
+  });
+
+  for (const lc of open) {
+    await syncLifecycleTaskHints(lc.id);
+  }
+
+  return prisma.employeeLifecycle.findMany({
+    where: { companyId, status: "OPEN" },
+    include: {
+      employee: {
+        select: {
+          id: true,
+          employeeCode: true,
+          firstName: true,
+          lastName: true,
+          department: true,
+          status: true,
+        },
+      },
+      tasks: { orderBy: { sortOrder: "asc" } },
+    },
+    orderBy: [{ kind: "asc" }, { startedAt: "asc" }],
   });
 }

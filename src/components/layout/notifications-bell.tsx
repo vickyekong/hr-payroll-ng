@@ -67,45 +67,45 @@ export function NotificationsBell() {
   }
 
   return (
-    <div className="relative mb-2 px-3">
+    <div className="relative mb-2">
       <button
         type="button"
         onClick={() => {
           setOpen((v) => !v);
           if (!open) load();
         }}
-        className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+        className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-lagoon-mist/80 transition hover:bg-white/5 hover:text-foam"
       >
         <span>Approvals & inbox</span>
         {unreadCount > 0 && (
-          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-md bg-lagoon px-1.5 py-0.5 text-[10px] font-semibold text-foam">
             {unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute left-3 right-3 z-30 mt-1 max-h-80 overflow-auto rounded-lg border border-stone-200 bg-white shadow-lg">
-          <div className="flex items-center justify-between border-b border-stone-100 px-3 py-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-stone-500">
+        <div className="absolute left-0 right-0 z-30 mt-1 max-h-80 overflow-auto rounded-xl border border-line bg-foam shadow-soft">
+          <div className="flex items-center justify-between border-b border-line/70 px-3 py-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">
               Notifications
             </p>
             {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={() => void markAllRead()}
-                className="text-xs text-stone-500 hover:text-stone-900"
+                className="text-xs text-muted hover:text-ink"
               >
                 Mark all read
               </button>
             )}
           </div>
           {items.length === 0 ? (
-            <p className="px-3 py-4 text-sm text-stone-500">No notifications</p>
+            <p className="px-3 py-4 text-sm text-muted">No notifications</p>
           ) : (
             <ul>
               {items.map((item) => (
-                <li key={item.id} className="border-b border-stone-50 last:border-0">
+                <li key={item.id} className="border-b border-sand last:border-0">
                   <Link
                     href={item.linkUrl.replace(/^https?:\/\/[^/]+/, "") || item.linkUrl}
                     onClick={() => {
@@ -113,14 +113,14 @@ export function NotificationsBell() {
                       setOpen(false);
                     }}
                     className={cn(
-                      "block px-3 py-3 hover:bg-stone-50",
-                      !item.readAt && "bg-amber-50/60"
+                      "block px-3 py-3 hover:bg-mist",
+                      !item.readAt && "bg-lagoon-mist/40"
                     )}
                   >
-                    <p className="text-sm font-medium text-stone-900">
+                    <p className="text-sm font-medium text-ink">
                       {item.title}
                     </p>
-                    <p className="mt-0.5 line-clamp-2 text-xs text-stone-500">
+                    <p className="mt-0.5 line-clamp-2 text-xs text-muted">
                       {item.body}
                     </p>
                   </Link>

@@ -45,13 +45,12 @@ async function main() {
   const users = [
     { email: "admin@acme.ng", name: "Super Admin", role: "SUPER_ADMIN" as UserRole },
     { email: "hr@acme.ng", name: "HR Admin", role: "HR_ADMIN" as UserRole },
-    { email: "finance@acme.ng", name: "Finance Approver", role: "FINANCE" as UserRole },
   ];
 
   for (const u of users) {
     await prisma.user.upsert({
       where: { email: u.email },
-      update: {},
+      update: { role: u.role, name: u.name, passwordHash },
       create: {
         email: u.email,
         name: u.name,
@@ -61,6 +60,14 @@ async function main() {
       },
     });
   }
+
+  // Remove legacy portal logins — product is Super Admin + HR only
+  await prisma.user.deleteMany({
+    where: {
+      companyId: company.id,
+      email: { in: ["finance@acme.ng", "adaeze@acme.ng"] },
+    },
+  });
 
   const departmentNames = ["Engineering", "Finance", "HR", "Management"];
   for (const name of departmentNames) {
@@ -151,27 +158,10 @@ async function main() {
     });
   }
 
-  const adaeze = await prisma.employee.findFirst({
-    where: { employeeCode: "EMP-001", companyId: company.id },
-  });
-
-  if (adaeze) {
-    await prisma.user.upsert({
-      where: { email: "adaeze@acme.ng" },
-      update: {},
-      create: {
-        email: "adaeze@acme.ng",
-        name: "Adaeze Okonkwo",
-        role: "EMPLOYEE",
-        passwordHash,
-        companyId: company.id,
-        employeeId: adaeze.id,
-      },
-    });
-  }
-
+  // Keep staff records only — no employee login users
   console.log("Seed completed.");
-  console.log("Login: admin@acme.ng / password123");
+  console.log("Super Admin: admin@acme.ng / password123");
+  console.log("HR portal:   hr@acme.ng / password123");
 }
 
 main()

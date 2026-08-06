@@ -10,7 +10,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-lg border border-stone-200 bg-white shadow-sm",
+        "rounded-xl border border-line/80 bg-foam/95 shadow-soft",
         className
       )}
     >
@@ -41,7 +41,12 @@ export function CardTitle({
   children: React.ReactNode;
 }) {
   return (
-    <h3 className={cn("text-lg font-semibold tracking-tight text-stone-900", className)}>
+    <h3
+      className={cn(
+        "text-lg font-semibold tracking-tight text-ink",
+        className
+      )}
+    >
       {children}
     </h3>
   );
@@ -55,7 +60,7 @@ export function CardDescription({
   children: React.ReactNode;
 }) {
   return (
-    <p className={cn("text-sm text-stone-500", className)}>{children}</p>
+    <p className={cn("text-sm text-muted", className)}>{children}</p>
   );
 }
 

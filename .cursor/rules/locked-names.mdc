@@ -1,0 +1,24 @@
+---
+description: Locked OmniPeople brand and naming conventions
+alwaysApply: true
+---
+
+# OmniPeople — locked brand & names
+
+## Product brand (user-chosen — do not rename without asking)
+- **Display name:** OmniPeople
+- **Source of truth:** `src/lib/brand.ts` (`PRODUCT_NAME`)
+- **Concept:** All-in-one platform for HR people ops + payroll
+- **Co-pilot voice:** Omni Co-Pilot
+- Repo folder may remain `hr-payroll-ng`; user-facing strings use **OmniPeople**
+
+## Portal users (only two logins)
+- **Super Admin** — clears payroll approval, sensitive change requests, Settings
+- **HR** — same workspace; seeks Super Admin clearance on payroll & sensitive updates
+- No employee self-service portal
+
+## Employee status / sex labels
+Use exact labels in `src/lib/employees/status.ts`.
+
+## Approval language
+- HR submits for Super Admin approval; Super Admin is notified and approves or sends back

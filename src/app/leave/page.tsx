@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import { useSession } from "next-auth/react";
 import { countWorkingDaysBetween } from "@/lib/leave/unpaid-leave";
 
 interface LeaveRequest {
@@ -44,10 +43,17 @@ interface LeaveBalance {
   };
 }
 
+interface StaffOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  employeeCode: string;
+}
+
 export default function LeavePage() {
-  const { data: session } = useSession();
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
+  const [staff, setStaff] = useState<StaffOption[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [computedDays, setComputedDays] = useState<number | null>(null);
   const [formError, setFormError] = useState("");
@@ -59,6 +65,27 @@ export default function LeavePage() {
     fetch("/api/leave/balances")
       .then((r) => r.json())
       .then(setBalances);
+    fetch("/api/employees")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setStaff(
+            data.map(
+              (e: {
+                id: string;
+                firstName: string;
+                lastName: string;
+                employeeCode: string;
+              }) => ({
+                id: e.id,
+                firstName: e.firstName,
+                lastName: e.lastName,
+                employeeCode: e.employeeCode,
+              })
+            )
+          );
+        }
+      });
   }
 
   useEffect(() => {
@@ -70,8 +97,9 @@ export default function LeavePage() {
       setComputedDays(null);
       return;
     }
-    const days = countWorkingDaysBetween(new Date(start), new Date(end));
-    setComputedDays(days);
+    setComputedDays(
+      countWorkingDaysBetween(new Date(start), new Date(end))
+    );
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -80,12 +108,15 @@ export default function LeavePage() {
     const form = new FormData(e.currentTarget);
     const startDate = form.get("startDate") as string;
     const endDate = form.get("endDate") as string;
-    const days = computedDays ?? countWorkingDaysBetween(new Date(startDate), new Date(endDate));
+    const days =
+      computedDays ??
+      countWorkingDaysBetween(new Date(startDate), new Date(endDate));
 
     const res = await fetch("/api/leave", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        employeeId: form.get("employeeId"),
         type: form.get("type"),
         startDate,
         endDate,
@@ -99,7 +130,7 @@ export default function LeavePage() {
       load();
     } else {
       const data = await res.json();
-      setFormError(data.error ?? "Failed to submit request");
+      setFormError(data.error ?? "Failed to record leave");
     }
   }
 
@@ -112,36 +143,28 @@ export default function LeavePage() {
     load();
   }
 
-  const isEmployee = session?.user?.role === "EMPLOYEE";
-
   return (
     <AppShell>
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-stone-900">Leave</h1>
           <p className="mt-1 text-sm text-stone-500">
-            Balances, requests, and approvals
+            Record and approve leave for staff (HR portal)
           </p>
         </div>
-        {isEmployee && (
-          <Button onClick={() => setShowForm(!showForm)}>
-            Request leave
-          </Button>
-        )}
+        <Button onClick={() => setShowForm(!showForm)}>Record leave</Button>
       </div>
 
       {balances.length > 0 && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>
-              {isEmployee ? "My leave balances" : "Team leave balances"}
-            </CardTitle>
+            <CardTitle>Team leave balances</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  {!isEmployee && <TableHead>Employee</TableHead>}
+                  <TableHead>Employee</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Entitled</TableHead>
                   <TableHead>Used</TableHead>
@@ -151,13 +174,11 @@ export default function LeavePage() {
               <TableBody>
                 {balances.map((b) => (
                   <TableRow key={b.id}>
-                    {!isEmployee && (
-                      <TableCell>
-                        {b.employee
-                          ? `${b.employee.firstName} ${b.employee.lastName}`
-                          : "—"}
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      {b.employee
+                        ? `${b.employee.firstName} ${b.employee.lastName}`
+                        : "—"}
+                    </TableCell>
                     <TableCell>{b.leaveType.replace("_", " ")}</TableCell>
                     <TableCell>{b.entitledDays}</TableCell>
                     <TableCell>{b.usedDays}</TableCell>
@@ -175,10 +196,26 @@ export default function LeavePage() {
       {showForm && (
         <Card className="mb-6 max-w-lg">
           <CardHeader>
-            <CardTitle>New leave request</CardTitle>
+            <CardTitle>Record leave for staff</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-3">
+              <div>
+                <Label htmlFor="employeeId">Employee</Label>
+                <select
+                  id="employeeId"
+                  name="employeeId"
+                  required
+                  className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
+                >
+                  <option value="">Select staff</option>
+                  {staff.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.firstName} {s.lastName} ({s.employeeCode})
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <Label htmlFor="type">Type</Label>
                 <select
@@ -204,7 +241,9 @@ export default function LeavePage() {
                     required
                     className="mt-1"
                     onChange={(e) => {
-                      const end = (document.getElementById("endDate") as HTMLInputElement)?.value;
+                      const end = (
+                        document.getElementById("endDate") as HTMLInputElement
+                      )?.value;
                       updateComputedDays(e.target.value, end);
                     }}
                   />
@@ -218,7 +257,11 @@ export default function LeavePage() {
                     required
                     className="mt-1"
                     onChange={(e) => {
-                      const start = (document.getElementById("startDate") as HTMLInputElement)?.value;
+                      const start = (
+                        document.getElementById(
+                          "startDate"
+                        ) as HTMLInputElement
+                      )?.value;
                       updateComputedDays(start, e.target.value);
                     }}
                   />
@@ -226,8 +269,8 @@ export default function LeavePage() {
               </div>
               {computedDays !== null && (
                 <p className="text-sm text-stone-600">
-                  Working days: <span className="font-medium">{computedDays}</span>
-                  {computedDays < 1 && " — select dates that include a weekday"}
+                  Working days:{" "}
+                  <span className="font-medium">{computedDays}</span>
                 </p>
               )}
               <div>
@@ -235,8 +278,11 @@ export default function LeavePage() {
                 <Input id="reason" name="reason" className="mt-1" />
               </div>
               {formError && <p className="text-sm text-red-600">{formError}</p>}
-              <Button type="submit" disabled={computedDays !== null && computedDays < 1}>
-                Submit request
+              <Button
+                type="submit"
+                disabled={computedDays !== null && computedDays < 1}
+              >
+                Save request
               </Button>
             </form>
           </CardContent>
@@ -247,7 +293,7 @@ export default function LeavePage() {
         <Table>
           <TableHeader>
             <TableRow>
-              {!isEmployee && <TableHead>Employee</TableHead>}
+              <TableHead>Employee</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Dates</TableHead>
               <TableHead>Days</TableHead>
@@ -258,13 +304,11 @@ export default function LeavePage() {
           <TableBody>
             {requests.map((r) => (
               <TableRow key={r.id}>
-                {!isEmployee && (
-                  <TableCell>
-                    {r.employee
-                      ? `${r.employee.firstName} ${r.employee.lastName}`
-                      : "—"}
-                  </TableCell>
-                )}
+                <TableCell>
+                  {r.employee
+                    ? `${r.employee.firstName} ${r.employee.lastName}`
+                    : "—"}
+                </TableCell>
                 <TableCell>{r.type.replace("_", " ")}</TableCell>
                 <TableCell>
                   {formatDate(r.startDate)} – {formatDate(r.endDate)}
@@ -284,9 +328,12 @@ export default function LeavePage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {r.status === "PENDING" && !isEmployee && (
+                  {r.status === "PENDING" && (
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => approve(r.id, "approve")}>
+                      <Button
+                        size="sm"
+                        onClick={() => approve(r.id, "approve")}
+                      >
                         Approve
                       </Button>
                       <Button

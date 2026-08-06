@@ -144,7 +144,7 @@ export async function buildStatutoryFilingPack(
   );
 
   const readme = [
-    `HR Pay NG — Statutory filing pack`,
+    `OmniPeople — Statutory filing pack`,
     `Company: ${run.company.name}`,
     `Period: ${periodLabel}`,
     `Run status: ${run.status}`,

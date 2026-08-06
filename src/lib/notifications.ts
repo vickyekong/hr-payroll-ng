@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { PERMISSIONS } from "@/lib/permissions";
 import { getMonthName } from "@/lib/utils";
 
 export function getAppBaseUrl(): string {
@@ -24,7 +23,7 @@ async function sendEmail(options: {
 }): Promise<{ sent: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   const from =
-    process.env.EMAIL_FROM || "HR Pay NG <onboarding@resend.dev>";
+    process.env.EMAIL_FROM || "OmniPeople <onboarding@resend.dev>";
 
   if (!apiKey) {
     console.info(
@@ -62,7 +61,7 @@ async function sendEmail(options: {
   }
 }
 
-/** Notify Finance (accountant) and Super Admin (GM) that payroll needs approval. */
+/** Notify Super Admin that HR submitted payroll and needs approval. */
 export async function notifyPayrollSubmitted(options: {
   companyId: string;
   runId: string;
@@ -73,19 +72,19 @@ export async function notifyPayrollSubmitted(options: {
 }) {
   const periodLabel = `${getMonthName(options.periodMonth)} ${options.periodYear}`;
   const linkUrl = payrollReviewUrl(options.runId);
-  const approverRoles = PERMISSIONS.approvePayroll;
 
+  // Always Super Admin — HR seeks approval; Super Admin signs off
   const recipients = await prisma.user.findMany({
     where: {
       companyId: options.companyId,
-      role: { in: approverRoles },
+      role: "SUPER_ADMIN",
       ...(options.excludeUserId ? { id: { not: options.excludeUserId } } : {}),
     },
     select: { id: true, email: true, name: true, role: true },
   });
 
-  const title = `Payroll ready for approval — ${periodLabel}`;
-  const body = `${options.submittedByName} submitted ${periodLabel} payroll for review. Open the link to approve or send it back.`;
+  const title = `Payroll awaiting your approval — ${periodLabel}`;
+  const body = `HR (${options.submittedByName}) submitted ${periodLabel} payroll for your approval. Open the link to approve or send it back.`;
 
   const notifications = await Promise.all(
     recipients.map(async (user) => {

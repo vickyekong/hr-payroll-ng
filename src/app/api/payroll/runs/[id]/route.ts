@@ -176,7 +176,7 @@ export async function PATCH(
           return NextResponse.json(
             {
               error:
-                "Pre-flight blocked submit. Fix blockers before sending to accountant / GM.",
+                "Pre-flight blocked submit. Fix blockers before sending to Super Admin for approval.",
               preflight,
             },
             { status: 422 }

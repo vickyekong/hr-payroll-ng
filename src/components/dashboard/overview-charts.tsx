@@ -11,14 +11,14 @@ import {
 import type { ChartSlice } from "@/lib/dashboard/overview";
 
 const COLORS = [
-  "#44403c",
-  "#a8a29e",
-  "#d97706",
+  "#0b2e33",
+  "#14919b",
+  "#0f737a",
+  "#5c7270",
+  "#b45309",
   "#0f766e",
-  "#b91c1c",
-  "#1d4ed8",
-  "#7c2d12",
-  "#365314",
+  "#163f45",
+  "#88b5b8",
 ];
 
 function ChartCard({
@@ -33,15 +33,15 @@ function ChartCard({
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5">
+    <div className="rounded-xl border border-line/80 bg-foam/95 p-5 shadow-soft">
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-stone-900">{title}</h3>
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
         {subtitle && (
-          <p className="mt-0.5 text-xs text-stone-500">{subtitle}</p>
+          <p className="mt-0.5 text-xs text-muted">{subtitle}</p>
         )}
       </div>
       {total === 0 ? (
-        <p className="py-12 text-center text-sm text-stone-500">No data yet</p>
+        <p className="py-12 text-center text-sm text-muted">No data yet</p>
       ) : (
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
@@ -72,9 +72,10 @@ function ChartCard({
                   return [`${n} (${pct}%)`, "Staff"];
                 }}
                 contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid #e7e5e4",
+                  borderRadius: 10,
+                  border: "1px solid #c9d6d4",
                   fontSize: 12,
+                  background: "#ffffff",
                 }}
               />
               <Legend

@@ -1,4 +1,6 @@
-# HR Pay NG — Nigerian Payroll Management System
+# OmniPeople — People operations & payroll
+
+All-in-one HR command center for Nigerian businesses: people ops, payroll, compliance, and Omni Co-Pilot insights.
 
 Full-stack HR payroll system for Nigerian businesses with accurate statutory calculations (PAYE, pension, NHF, NSITF), payroll run workflow, payslip PDF generation, leave management, and reporting.
 
@@ -66,7 +68,7 @@ The build **requires** these environment variables in your Vercel project (**Set
 
 Keeps a shared HR area in Drive/Sheets:
 
-- Folder tree: `HR Pay NG / Staff`, `Payroll`, `Exports`
+- Folder tree: `OmniPeople / Staff`, `Payroll`, `Exports`
 - **Staff Database** Google Sheet (live employee roster)
 - **Payroll Database** Google Sheet (all payslip rows)
 - CSV snapshots in **Exports**
@@ -78,7 +80,7 @@ Setup:
    `https://hr-payroll-ng.vercel.app/api/integrations/google-drive/callback`
 3. Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` (and optional domain/folder) in Vercel → redeploy
 4. Super Admin → **Settings** → **Connect Google Workspace** → **Sync staff + payroll now**
-5. Share the `HR Pay NG` folder with HR/Finance in Workspace (or rely on domain sharing)
+5. Share the `OmniPeople` folder with HR/Finance in Workspace (or rely on domain sharing)
 
 On Employees / Payroll pages you can also **Sync Sheet** or **Save file to Drive**.
 
@@ -96,23 +98,24 @@ The build script runs `prisma generate` automatically before `next build`.
 
 ## Demo Accounts
 
-| Role | Email | Password |
+Two similar users — both manage people and payroll. Super Admin clears a few
+sensitive actions (payroll approval, change requests) and company Settings.
+
+| User | Email | Password |
 |------|-------|----------|
 | Super Admin | admin@acme.ng | password123 |
-| HR Admin | hr@acme.ng | password123 |
-| Finance | finance@acme.ng | password123 |
-| Employee | adaeze@acme.ng | password123 |
+| HR | hr@acme.ng | password123 |
 
 ## Core Features
 
 - **Employee management** — profiles, compensation structure, bank/statutory IDs
 - **Payroll engine** — pure, testable Nigerian statutory calculations (configurable tax bands)
 - **Payroll runs** — Draft → Under Review → Approved → Paid (immutable after approval)
-- **Payslips** — PDF generation with YTD summary
-- **Employee self-service** — own payslips only (strict access control)
-- **Leave management** — requests, approvals, unpaid leave → payroll deductions
+- **Payslips** — PDF generation with YTD summary (HR / Super Admin)
+- **Leave management** — HR records leave for staff; unpaid leave → payroll deductions
 - **Reports** — remittances, department breakdown, employer cost
 - **Exports** — staff & payroll CSV download, optional Google Drive upload
+- **HR Ask / Desk** — policy queries, lifecycle, change-request review
 
 ## Tax Configuration
 

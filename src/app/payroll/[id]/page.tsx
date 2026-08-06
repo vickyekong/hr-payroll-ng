@@ -4,69 +4,17 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AppShell } from "@/components/layout/app-shell";
-import { Button } from "@/components/ui/button";
-import { Badge, payrollStatusVariant } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableCurrency,
-} from "@/components/ui/table";
-import { formatCurrency, getMonthName } from "@/lib/utils";
-import { ExportActions } from "@/components/exports/export-actions";
-import {
-  PayrollPreflightPanel,
-  type PreflightData,
-} from "@/components/payroll/preflight-panel";
+  PayrollWizard,
+  type WizardRun,
+} from "@/components/payroll/payroll-wizard";
+import type { PreflightData } from "@/components/payroll/preflight-panel";
 import { can } from "@/lib/permissions";
-
-interface PayslipRow {
-  id: string;
-  grossPayKobo: string;
-  payeKobo: string;
-  netPayKobo: string;
-  bonusesKobo?: string;
-  otherDeductionsKobo?: string;
-  employee: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    employeeCode: string;
-    department: string;
-  };
-}
-
-interface AdjustmentRow {
-  id: string;
-  type: string;
-  amountKobo: string;
-  description?: string;
-  employee: {
-    firstName: string;
-    lastName: string;
-    employeeCode: string;
-  };
-}
-
-interface PayrollRunDetail {
-  id: string;
-  periodMonth: number;
-  periodYear: number;
-  status: string;
-  payslips: PayslipRow[];
-  adjustments: AdjustmentRow[];
-}
 
 export default function PayrollRunDetailPage() {
   const params = useParams();
   const { data: session } = useSession();
-  const [run, setRun] = useState<PayrollRunDetail | null>(null);
+  const [run, setRun] = useState<WizardRun | null>(null);
   const [preflight, setPreflight] = useState<PreflightData | null>(null);
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -77,7 +25,6 @@ export default function PayrollRunDetailPage() {
     recipients: Array<{
       name: string;
       email: string;
-      role: string;
       emailSent: boolean;
     }>;
   } | null>(null);
@@ -236,7 +183,7 @@ export default function PayrollRunDetailPage() {
   if (!run) {
     return (
       <AppShell>
-        <p className="text-stone-500">Loading…</p>
+        <p className="text-stone-500">Loading payroll wizard…</p>
       </AppShell>
     );
   }
@@ -247,397 +194,26 @@ export default function PayrollRunDetailPage() {
     run.payslips.length > 0 &&
     (preflight?.canSubmit ?? false);
 
-  const totals = run.payslips.reduce(
-    (acc, p) => ({
-      gross: acc.gross + BigInt(p.grossPayKobo),
-      paye: acc.paye + BigInt(p.payeKobo),
-      net: acc.net + BigInt(p.netPayKobo),
-    }),
-    { gross: 0n, paye: 0n, net: 0n }
-  );
-
   return (
     <AppShell>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <p className="text-sm text-stone-500">Payroll run</p>
-          <h1 className="text-2xl font-semibold text-stone-900">
-            {getMonthName(run.periodMonth)} {run.periodYear}
-          </h1>
-        </div>
-        <Badge variant={payrollStatusVariant(run.status)}>
-          {run.status.replace("_", " ")}
-        </Badge>
-      </div>
-
-      <PayrollPreflightPanel
-        data={preflight}
-        loading={preflightLoading}
-        onRefresh={loadPreflight}
+      <PayrollWizard
+        run={run}
+        preflight={preflight}
+        preflightLoading={preflightLoading}
+        loading={loading}
+        canApprove={canApprove}
+        canSubmit={canSubmit}
+        driveConnected={driveConnected}
+        submitNotice={submitNotice}
+        showAdjustForm={showAdjustForm}
+        onToggleAdjustForm={() => setShowAdjustForm((v) => !v)}
+        onRefreshPreflight={loadPreflight}
+        onRecalculate={recalculate}
+        onApplyPenalties={applyAttendancePenalties}
+        onAction={doAction}
+        onAddAdjustment={addAdjustment}
+        onDeleteAdjustment={deleteAdjustment}
       />
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Export &amp; filing</CardTitle>
-          <p className="text-sm text-stone-500">
-            Download CSV, statutory filing pack (PAYE / pension / NHF / NSITF /
-            bank list), or sync to Google.
-          </p>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-3">
-          <ExportActions
-            kind="payroll"
-            runId={run.id}
-            driveConnected={driveConnected}
-          />
-          <Button variant="outline" size="sm" asChild>
-            <a href={`/api/payroll/runs/${run.id}/filing-pack`} download>
-              Download filing pack (ZIP)
-            </a>
-          </Button>
-        </CardContent>
-      </Card>
-
-      {run.status === "UNDER_REVIEW" && canApprove && (
-        <Card className="mb-6 border-amber-200 bg-amber-50">
-          <CardHeader>
-            <CardTitle>Approval required</CardTitle>
-            <p className="text-sm text-stone-600">
-              HR submitted this payroll for your review. Check the pre-flight
-              summary above, then approve to lock figures or send back to draft.
-            </p>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button onClick={() => doAction("approve")} disabled={loading}>
-              Approve payroll
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (confirm("Send this payroll back to HR as draft?")) {
-                  doAction("reject");
-                }
-              }}
-              disabled={loading}
-            >
-              Send back to HR
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {submitNotice && (
-        <Card className="mb-6 border-emerald-200 bg-emerald-50">
-          <CardHeader>
-            <CardTitle>Submitted for approval</CardTitle>
-            <p className="text-sm text-stone-600">
-              Accountant / GM were notified with a review link.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <Label htmlFor="reviewLink">Approval link</Label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                <Input
-                  id="reviewLink"
-                  readOnly
-                  value={submitNotice.reviewUrl}
-                  className="min-w-[16rem] flex-1 bg-white"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(submitNotice.reviewUrl);
-                    alert("Approval link copied");
-                  }}
-                >
-                  Copy link
-                </Button>
-              </div>
-            </div>
-            <ul className="space-y-1 text-sm text-stone-700">
-              {submitNotice.recipients.map((r) => (
-                <li key={r.email}>
-                  {r.name} ({r.email})
-                  {r.role === "FINANCE"
-                    ? " · Accountant"
-                    : r.role === "SUPER_ADMIN"
-                      ? " · GM / Super Admin"
-                      : ` · ${r.role}`}
-                  {r.emailSent ? " · email sent" : " · in-app only"}
-                </li>
-              ))}
-              {submitNotice.recipients.length === 0 && (
-                <li className="text-stone-500">
-                  No Finance or Super Admin users found to notify.
-                </li>
-              )}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="mb-6 flex flex-wrap gap-2">
-        {isDraft && (
-          <>
-            <Button onClick={recalculate} variant="outline" disabled={loading}>
-              Recalculate all
-            </Button>
-            <Button
-              onClick={applyAttendancePenalties}
-              variant="outline"
-              disabled={loading}
-            >
-              Apply attendance penalties
-            </Button>
-            <Button
-              onClick={() => setShowAdjustForm(!showAdjustForm)}
-              variant="outline"
-              disabled={loading}
-            >
-              Add adjustment
-            </Button>
-            <Button
-              onClick={() => {
-                if (preflight && !preflight.canSubmit) {
-                  alert(
-                    "Fix pre-flight blockers before submitting to accountant / GM."
-                  );
-                  return;
-                }
-                doAction("submit_review");
-              }}
-              disabled={loading || !canSubmit}
-              title={
-                preflight && !preflight.canSubmit
-                  ? "Resolve blockers in pre-flight first"
-                  : undefined
-              }
-            >
-              Submit to accountant / GM
-            </Button>
-          </>
-        )}
-        {run.status === "UNDER_REVIEW" && !canApprove && (
-          <p className="text-sm text-stone-500">
-            Waiting for accountant or GM approval.
-          </p>
-        )}
-        {run.status === "APPROVED" && (
-          <Button onClick={() => doAction("mark_paid")} disabled={loading}>
-            Mark as paid
-          </Button>
-        )}
-        {(run.status === "APPROVED" || run.status === "PAID") && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (
-                confirm(
-                  "Reverse this run? It will reset to draft and regenerate payslips from current employee data and adjustments."
-                )
-              ) {
-                doAction("reverse");
-              }
-            }}
-            disabled={loading}
-          >
-            Reverse & re-run
-          </Button>
-        )}
-      </div>
-
-      {showAdjustForm && isDraft && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Add one-off adjustment</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={addAdjustment} className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="employeeId">Employee</Label>
-                <select
-                  id="employeeId"
-                  name="employeeId"
-                  required
-                  className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
-                >
-                  <option value="">Select employee</option>
-                  {run.payslips.map((p) => (
-                    <option key={p.employee.id} value={p.employee.id}>
-                      {p.employee.firstName} {p.employee.lastName} (
-                      {p.employee.employeeCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="type">Type</Label>
-                <select
-                  id="type"
-                  name="type"
-                  required
-                  className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
-                >
-                  <option value="BONUS">Bonus</option>
-                  <option value="LOAN_DEDUCTION">Loan deduction</option>
-                  <option value="ADVANCE">Salary advance</option>
-                  <option value="UNPAID_LEAVE">Unpaid leave (manual)</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="amount">Amount (₦)</Label>
-                <Input
-                  id="amount"
-                  name="amount"
-                  type="number"
-                  min={0.01}
-                  step={0.01}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Input id="description" name="description" className="mt-1" />
-              </div>
-              <div className="sm:col-span-2">
-                <Button type="submit" disabled={loading}>
-                  Save & recalculate employee
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {run.adjustments.length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Adjustments ({run.adjustments.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Description</TableHead>
-                  {isDraft && <TableHead></TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {run.adjustments.map((adj) => (
-                  <TableRow key={adj.id}>
-                    <TableCell>
-                      {adj.employee.firstName} {adj.employee.lastName}
-                    </TableCell>
-                    <TableCell>{adj.type.replace("_", " ")}</TableCell>
-                    <TableCell className="text-right">
-                      <TableCurrency value={adj.amountKobo} />
-                    </TableCell>
-                    <TableCell className="text-stone-500">
-                      {adj.description ?? "—"}
-                    </TableCell>
-                    {isDraft && (
-                      <TableCell className="text-right">
-                        <button
-                          type="button"
-                          onClick={() => deleteAdjustment(adj.id)}
-                          className="text-xs text-red-600 hover:text-red-800"
-                          disabled={loading}
-                        >
-                          Remove
-                        </button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        {[
-          ["Total gross", totals.gross],
-          ["Total PAYE", totals.paye],
-          ["Total net pay", totals.net],
-        ].map(([label, amount]) => (
-          <div
-            key={label as string}
-            className="rounded-lg border border-stone-200 bg-white p-4"
-          >
-            <p className="text-xs uppercase tracking-wide text-stone-500">
-              {label}
-            </p>
-            <p className="mt-1 text-xl font-semibold tabular-nums">
-              {formatCurrency(amount as bigint)}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <div className="rounded-lg border border-stone-200 bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead className="text-right">Gross</TableHead>
-              <TableHead className="text-right">PAYE</TableHead>
-              <TableHead className="text-right">Net</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {run.payslips.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>
-                  <span className="font-medium">
-                    {p.employee.firstName} {p.employee.lastName}
-                  </span>
-                  <span className="ml-2 text-xs text-stone-400">
-                    {p.employee.employeeCode}
-                  </span>
-                </TableCell>
-                <TableCell>{p.employee.department}</TableCell>
-                <TableCell className="text-right">
-                  <TableCurrency value={p.grossPayKobo} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <TableCurrency value={p.payeKobo} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <TableCurrency value={p.netPayKobo} />
-                </TableCell>
-                <TableCell className="text-right">
-                  {(run.status === "APPROVED" || run.status === "PAID") && (
-                    <a
-                      href={`/api/payslips/${p.id}/pdf`}
-                      className="text-sm text-stone-600 hover:text-stone-900"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      PDF
-                    </a>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-            {run.payslips.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-stone-500">
-                  No payslips — click Recalculate all to generate
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
     </AppShell>
   );
 }

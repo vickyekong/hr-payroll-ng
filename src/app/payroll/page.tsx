@@ -61,14 +61,14 @@ export default function PayrollPage() {
     <AppShell>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-stone-900">Payroll Runs</h1>
+          <h1 className="text-2xl font-semibold text-stone-900">Payroll</h1>
           <p className="mt-1 text-sm text-stone-500">
-            One-click create recalculates salaries, unpaid leave, and attendance
-            penalties — then review the pre-flight summary before submit
+            OmniPeople 4-step wizard — aggregate, guardrails, summary, then
+            Super Admin clearance &amp; filing
           </p>
         </div>
         <Button onClick={createRun} disabled={creating}>
-          {creating ? "Creating…" : "New payroll run"}
+          {creating ? "Creating…" : "Start payroll wizard"}
         </Button>
       </div>
 

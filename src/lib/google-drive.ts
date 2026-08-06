@@ -245,7 +245,7 @@ export async function ensureWorkspaceFolders(companyId: string) {
   const rootId =
     integration.folderId ||
     process.env.GOOGLE_DRIVE_FOLDER_ID ||
-    (await ensureFolder(drive, "HR Pay NG"));
+    (await ensureFolder(drive, "OmniPeople"));
 
   if (!integration.folderId && !process.env.GOOGLE_DRIVE_FOLDER_ID) {
     await shareWithWorkspaceDomain(drive, rootId);
@@ -306,7 +306,7 @@ export async function syncStaffToWorkspace(companyId: string) {
   const result = await upsertSpreadsheet({
     drive,
     sheets,
-    title: "HR Pay NG — Staff Database",
+    title: "OmniPeople — Staff Database",
     folderId: staffFolderId,
     existingId: integration.staffSpreadsheetId,
     rows: csvToRows(csv),
@@ -342,13 +342,13 @@ export async function syncPayrollToWorkspace(
 
   let rows: string[][];
   let rowCount = 0;
-  let title = "HR Pay NG — Payroll Database";
+  let title = "OmniPeople — Payroll Database";
 
   if (runId) {
     const exportData = await buildPayrollExportCsv(companyId, runId);
     rows = csvToRows(exportData.csv);
     rowCount = exportData.rowCount;
-    title = `HR Pay NG — Payroll ${exportData.periodLabel}`;
+    title = `OmniPeople — Payroll ${exportData.periodLabel}`;
   } else {
     const runs = await prisma.payrollRun.findMany({
       where: { companyId },

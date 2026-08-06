@@ -156,6 +156,7 @@ export async function runHrAskQuery(
         include: {
           employee: {
             select: {
+              id: true,
               employeeCode: true,
               firstName: true,
               lastName: true,
@@ -168,7 +169,7 @@ export async function runHrAskQuery(
       return {
         id: queryId,
         title: "Open onboarding checklists",
-        summary: `${open.length} new hires still onboarding`,
+        summary: `${open.length} new hires still onboarding — open staff profile to complete`,
         href: "/employees",
         rows: open.map((l) => ({
           code: l.employee.employeeCode,
@@ -179,6 +180,42 @@ export async function runHrAskQuery(
           ),
           department: l.employee.department,
           pendingTasks: String(l.tasks.length),
+          openProfile: `/employees/${l.employee.id}`,
+        })),
+      };
+    }
+
+    case "open-offboarding": {
+      const open = await prisma.employeeLifecycle.findMany({
+        where: { companyId, kind: "OFFBOARDING", status: "OPEN" },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              employeeCode: true,
+              firstName: true,
+              lastName: true,
+              department: true,
+            },
+          },
+          tasks: { where: { status: "PENDING" } },
+        },
+      });
+      return {
+        id: queryId,
+        title: "Open offboarding checklists",
+        summary: `${open.length} exits in progress — open staff profile to complete`,
+        href: "/employees",
+        rows: open.map((l) => ({
+          code: l.employee.employeeCode,
+          name: displayName(
+            l.employee.firstName,
+            l.employee.lastName,
+            l.employee.employeeCode
+          ),
+          department: l.employee.department,
+          pendingTasks: String(l.tasks.length),
+          openProfile: `/employees/${l.employee.id}`,
         })),
       };
     }
@@ -363,6 +400,11 @@ export const HR_ASK_QUERIES: Array<{ id: string; label: string; hint: string }> 
       id: "open-onboarding",
       label: "Open onboarding checklists",
       hint: "New hires still incomplete",
+    },
+    {
+      id: "open-offboarding",
+      label: "Open offboarding checklists",
+      hint: "Exits in progress",
     },
     {
       id: "pending-change-requests",

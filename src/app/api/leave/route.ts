@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth, handleApiError, AuthError } from "@/lib/api-auth";
-import { can } from "@/lib/permissions";
+import {
+  requireAuth,
+  requirePermission,
+  handleApiError,
+} from "@/lib/api-auth";
 import { countWorkingDaysBetween } from "@/lib/leave/unpaid-leave";
 import { z } from "zod";
 
 const leaveSchema = z.object({
+  employeeId: z.string().min(1),
   type: z.enum(["ANNUAL", "SICK", "MATERNITY", "PATERNITY", "UNPAID"]),
   startDate: z.string(),
   endDate: z.string(),
@@ -15,22 +19,10 @@ const leaveSchema = z.object({
 
 export async function GET() {
   try {
-    const session = await requireAuth();
-
-    const where =
-      session.user.role === "EMPLOYEE" && session.user.employeeId
-        ? { employeeId: session.user.employeeId }
-        : {
-            employee: { companyId: session.user.companyId },
-            ...(can(session.user.role, "manageLeave") ? {} : {}),
-          };
-
-    if (!can(session.user.role, "manageLeave") && session.user.role !== "EMPLOYEE") {
-      throw new AuthError("Forbidden", 403);
-    }
+    const session = await requirePermission("manageLeave");
 
     const requests = await prisma.leaveRequest.findMany({
-      where,
+      where: { employee: { companyId: session.user.companyId } },
       include: {
         employee: {
           select: { firstName: true, lastName: true, employeeCode: true },
@@ -48,13 +40,14 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireAuth();
-
+    const session = await requirePermission("manageLeave");
     const body = leaveSchema.parse(await req.json());
 
-    const employeeId = session.user.employeeId;
-    if (!employeeId) {
-      throw new AuthError("Employee account required", 403);
+    const employee = await prisma.employee.findFirst({
+      where: { id: body.employeeId, companyId: session.user.companyId },
+    });
+    if (!employee) {
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 });
     }
 
     const startDate = new Date(body.startDate);
@@ -89,7 +82,7 @@ export async function POST(req: NextRequest) {
       const balance = await prisma.leaveBalance.findUnique({
         where: {
           employeeId_leaveType_year: {
-            employeeId,
+            employeeId: body.employeeId,
             leaveType: "ANNUAL",
             year,
           },
@@ -98,7 +91,9 @@ export async function POST(req: NextRequest) {
       const remaining = (balance?.entitledDays ?? 21) - (balance?.usedDays ?? 0);
       if (days > remaining) {
         return NextResponse.json(
-          { error: `Insufficient annual leave balance (${remaining} days remaining)` },
+          {
+            error: `Insufficient annual leave balance (${remaining} days remaining)`,
+          },
           { status: 400 }
         );
       }
@@ -106,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     const request = await prisma.leaveRequest.create({
       data: {
-        employeeId,
+        employeeId: body.employeeId,
         type: body.type,
         startDate,
         endDate,

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ExportActions } from "@/components/exports/export-actions";
 import { getGoogleDriveStatus } from "@/lib/google-drive";
 import { EmployeesPageClient } from "@/components/employees/employees-page-client";
+import { OpenLifecycleQueue } from "@/components/employees/lifecycle-queue";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
 import { redirect } from "next/navigation";
 
@@ -86,7 +87,7 @@ export default async function EmployeesPage() {
         <div>
           <h1 className="text-2xl font-semibold text-stone-900">Employees</h1>
           <p className="mt-1 text-sm text-stone-500">
-            Staff directory, departments, and clock-machine attendance reports
+            Staff directory, onboarding / offboarding, and attendance
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -96,6 +97,8 @@ export default async function EmployeesPage() {
           </Button>
         </div>
       </div>
+
+      <OpenLifecycleQueue />
 
       <Suspense fallback={<p className="text-sm text-stone-500">Loading…</p>}>
         <EmployeesPageClient

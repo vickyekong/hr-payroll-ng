@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/brand";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,58 +36,81 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-stone-100 px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <p className="text-xs font-medium uppercase tracking-widest text-stone-400">
-            Nigeria Payroll
+    <div className="relative flex min-h-screen overflow-hidden bg-login-atmosphere">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-40"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d8f0f2' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
+        }}
+      />
+
+      <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col justify-center gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-16 lg:px-10">
+        <div className="animate-soft-rise max-w-md text-foam lg:flex-1">
+          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon-mist/70">
+            People &amp; payroll
           </p>
-          <h1 className="mt-2 text-2xl font-semibold text-stone-900">HR Pay NG</h1>
-          <p className="mt-1 text-sm text-stone-500">
-            Sign in to manage payroll
+          <h1 className="font-display mt-4 text-5xl font-semibold leading-[1.05] tracking-tight text-foam sm:text-6xl">
+            {PRODUCT_NAME}
+          </h1>
+          <p className="mt-4 max-w-sm text-base leading-relaxed text-lagoon-mist/75">
+            {PRODUCT_TAGLINE}. HR and Super Admin share one workspace — clearance
+            only when money and sensitive data need it.
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm"
+        <div
+          className="animate-fade-up w-full max-w-sm lg:flex-shrink-0"
+          style={{ animationDelay: "80ms" }}
         >
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@acme.ng"
-                className="mt-1"
-                required
-              />
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-xl border border-white/15 bg-foam/95 p-6 shadow-soft backdrop-blur-sm"
+          >
+            <p className="text-sm font-medium text-ink">Sign in</p>
+            <p className="mt-1 text-xs text-muted">
+              Super Admin or HR — same tools, clearance where it counts
+            </p>
+            <div className="mt-5 space-y-4">
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@acme.ng"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1"
+                  required
+                />
+              </div>
+              {error && <p className="text-sm text-signal">{error}</p>}
+              <Button
+                type="submit"
+                variant="brand"
+                className="w-full"
+                disabled={loading}
+              >
+                {loading ? "Signing in…" : "Enter workspace"}
+              </Button>
             </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1"
-                required
-              />
-            </div>
-            {error && (
-              <p className="text-sm text-red-600">{error}</p>
-            )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-            </Button>
-          </div>
-        </form>
-
-        <p className="mt-4 text-center text-xs text-stone-400">
-          Demo: admin@acme.ng / password123
-        </p>
+          </form>
+          <p className="mt-4 text-center text-xs text-lagoon-mist/50">
+            Demo · admin@acme.ng · hr@acme.ng · password123
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -58,9 +58,13 @@ export default async function EmployeeDetailPage({
       </div>
 
       <div className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold text-stone-900">
-          Lifecycle co-pilot
+        <h2 className="mb-1 text-lg font-semibold text-stone-900">
+          Onboarding &amp; offboarding
         </h2>
+        <p className="mb-3 text-sm text-stone-500">
+          HR checklists for this staff member — start, track, and complete tasks
+          on their behalf
+        </p>
         <EmployeeLifecyclePanel employeeId={employee.id} />
       </div>
 

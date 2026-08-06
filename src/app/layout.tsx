@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/brand";
 
-const inter = Inter({
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-manrope",
+  display: "swap",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "HR Pay NG — Payroll Management",
-  description: "HR Payroll Management System for Nigerian businesses",
+  title: `${PRODUCT_NAME} — People & Payroll`,
+  description: PRODUCT_TAGLINE,
 };
 
 export default function RootLayout({
@@ -20,7 +28,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body
+        className={`${manrope.variable} ${fraunces.variable} font-sans antialiased`}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

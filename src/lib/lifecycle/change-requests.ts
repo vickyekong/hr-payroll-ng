@@ -92,26 +92,30 @@ export async function submitChangeRequest(options: {
   });
 }
 
-export async function notifyHrOfChangeRequest(options: {
+export async function notifySuperAdminOfChangeRequest(options: {
   companyId: string;
   requestId: string;
   employeeName: string;
   type: string;
+  submittedByName?: string;
 }) {
-  const hrUsers = await prisma.user.findMany({
+  const admins = await prisma.user.findMany({
     where: {
       companyId: options.companyId,
-      role: { in: ["HR_ADMIN", "SUPER_ADMIN"] },
+      role: "SUPER_ADMIN",
     },
     select: { id: true },
   });
 
-  const title = "Employee change request";
-  const body = `${options.employeeName} submitted a ${options.type.replace(/_/g, " ").toLowerCase()} update for approval.`;
+  const who = options.submittedByName ? `HR (${options.submittedByName})` : "HR";
+  const title = "Change request awaiting your approval";
+  const body = `${who} logged a ${options.type.replace(/_/g, " ").toLowerCase()} update for ${options.employeeName}. Approve or reject in HR Ask.`;
   const linkUrl = `/hr-ask?tab=changes`;
 
+  if (admins.length === 0) return;
+
   await prisma.notification.createMany({
-    data: hrUsers.map((u) => ({
+    data: admins.map((u) => ({
       companyId: options.companyId,
       userId: u.id,
       type: "CHANGE_REQUEST",
@@ -122,6 +126,16 @@ export async function notifyHrOfChangeRequest(options: {
       entityId: options.requestId,
     })),
   });
+}
+
+/** @deprecated use notifySuperAdminOfChangeRequest */
+export async function notifyHrOfChangeRequest(options: {
+  companyId: string;
+  requestId: string;
+  employeeName: string;
+  type: string;
+}) {
+  return notifySuperAdminOfChangeRequest(options);
 }
 
 export async function reviewChangeRequest(options: {

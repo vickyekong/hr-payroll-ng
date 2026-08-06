@@ -69,7 +69,7 @@ export function PeopleIntelligencePanel({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-stone-900">
-            People intelligence
+            Omni Co-Pilot
           </h2>
           <p className="text-sm text-stone-500">
             Auto stats, risk signals, and recommendations · {periodLabel}
@@ -88,11 +88,13 @@ export function PeopleIntelligencePanel({
         </div>
       </div>
 
-      <div className="rounded-lg border border-stone-200 bg-stone-900 px-5 py-4 text-stone-50">
-        <p className="text-xs font-medium uppercase tracking-wide text-stone-400">
+      <div className="rounded-xl border border-ink/20 bg-ink px-5 py-4 text-foam shadow-soft">
+        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-lagoon">
           Briefing
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-stone-100">{briefing}</p>
+        <p className="mt-2 text-sm leading-relaxed text-lagoon-mist/90">
+          {briefing}
+        </p>
       </div>
 
       {riskSignals.length > 0 && (

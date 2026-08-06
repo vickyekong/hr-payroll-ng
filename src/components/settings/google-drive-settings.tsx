@@ -220,7 +220,7 @@ export function GoogleDriveSettings() {
                 className="mt-1"
                 value={folderId}
                 onChange={(e) => setFolderId(e.target.value)}
-                placeholder="Leave blank to auto-create “HR Pay NG”"
+                placeholder="Leave blank to auto-create “OmniPeople”"
               />
               <p className="mt-1 text-xs text-stone-500">
                 Sync creates Staff, Payroll, and Exports folders under this root.

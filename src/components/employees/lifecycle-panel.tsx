@@ -115,7 +115,9 @@ export function EmployeeLifecyclePanel({ employeeId }: { employeeId: string }) {
 
       {items.length === 0 ? (
         <p className="text-sm text-stone-500">
-          No lifecycle checklists yet. New hires start onboarding automatically.
+          No checklists yet. Use the buttons above to start onboarding or
+          offboarding for this staff member. New hires also get onboarding
+          automatically when created.
         </p>
       ) : (
         items.map((lc) => {

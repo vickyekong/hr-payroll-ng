@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { can } from "@/lib/permissions";
+import type { UserRole } from "@prisma/client";
 
 interface QueryDef {
   id: string;
@@ -45,6 +48,9 @@ interface PendingChange {
 }
 
 export default function HrAskClient() {
+  const { data: session } = useSession();
+  const role = session?.user?.role as UserRole | undefined;
+  const canApproveChanges = role ? can(role, "approveChangeRequests") : false;
   const searchParams = useSearchParams();
   const initialTab =
     searchParams.get("tab") === "changes" ? "changes" : "ask";
@@ -106,8 +112,8 @@ export default function HrAskClient() {
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-stone-900">HR Ask</h1>
         <p className="mt-1 text-sm text-stone-500">
-          Policy &amp; query desk — instant answers from your HR data, plus
-          Approve/Reject for employee-submitted updates
+          Policy &amp; query desk — plus change requests HR logs for Super Admin
+          approval
         </p>
       </div>
 
@@ -200,8 +206,9 @@ export default function HrAskClient() {
           <CardHeader>
             <CardTitle>Pending employee updates</CardTitle>
             <p className="text-sm text-stone-500">
-              Validated submissions from My Portal — approve to write into the
-              employee record
+              {canApproveChanges
+                ? "HR logged these for your approval — approve to write into the employee record, or reject."
+                : "Logged for Super Admin approval. You can view the queue; only Super Admin can approve or reject."}
             </p>
           </CardHeader>
           <CardContent>
@@ -233,23 +240,29 @@ export default function HrAskClient() {
                         </p>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        disabled={busyId === r.id}
-                        onClick={() => review(r.id, "approve")}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={busyId === r.id}
-                        onClick={() => review(r.id, "reject")}
-                      >
-                        Reject
-                      </Button>
-                    </div>
+                    {canApproveChanges ? (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          disabled={busyId === r.id}
+                          onClick={() => review(r.id, "approve")}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busyId === r.id}
+                          onClick={() => review(r.id, "reject")}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-medium text-amber-700">
+                        Awaiting Super Admin
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>

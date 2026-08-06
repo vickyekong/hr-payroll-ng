@@ -53,6 +53,9 @@ export const authOptions: NextAuthOptions = {
 
         if (!user) return null;
 
+        // Two portals only: Super Admin + HR. Staff and legacy Finance logins blocked.
+        if (user.role === "EMPLOYEE" || user.role === "FINANCE") return null;
+
         const valid = await bcrypt.compare(
           credentials.password,
           user.passwordHash
