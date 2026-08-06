@@ -267,7 +267,7 @@ export async function PATCH(
           notified: notificationResult?.recipients.map((r) => ({
             email: r.email,
             role: r.role,
-            emailSent: r.emailSent,
+            notificationId: r.notificationId,
           })),
           reviewUrl: notificationResult?.linkUrl,
         },
@@ -285,7 +285,6 @@ export async function PATCH(
                 name: r.name,
                 email: r.email,
                 role: r.role,
-                emailSent: r.emailSent,
               })),
             }
           : null,

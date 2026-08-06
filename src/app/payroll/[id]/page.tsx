@@ -25,7 +25,6 @@ export default function PayrollRunDetailPage() {
     recipients: Array<{
       name: string;
       email: string;
-      emailSent: boolean;
     }>;
   } | null>(null);
 

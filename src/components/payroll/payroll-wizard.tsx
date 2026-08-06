@@ -127,7 +127,6 @@ export function PayrollWizard({
     recipients: Array<{
       name: string;
       email: string;
-      emailSent: boolean;
     }>;
   } | null;
   showAdjustForm: boolean;
@@ -772,8 +771,7 @@ export function PayrollWizard({
                 <ul className="space-y-1 text-sm text-stone-700">
                   {submitNotice.recipients.map((r) => (
                     <li key={r.email}>
-                      {r.name} ({r.email}) · Super Admin
-                      {r.emailSent ? " · email sent" : " · in-app only"}
+                      {r.name} ({r.email}) · notified in-app
                     </li>
                   ))}
                 </ul>

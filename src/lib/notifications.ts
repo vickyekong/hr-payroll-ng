@@ -15,53 +15,7 @@ export function payrollReviewUrl(runId: string): string {
   return `${getAppBaseUrl()}/payroll/${runId}`;
 }
 
-async function sendEmail(options: {
-  to: string;
-  subject: string;
-  html: string;
-  text: string;
-}): Promise<{ sent: boolean; error?: string }> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from =
-    process.env.EMAIL_FROM || "OmniPeople <onboarding@resend.dev>";
-
-  if (!apiKey) {
-    console.info(
-      `[notify] Email skipped (no RESEND_API_KEY). To=${options.to} Subject=${options.subject}`
-    );
-    return { sent: false, error: "RESEND_API_KEY not configured" };
-  }
-
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [options.to],
-        subject: options.subject,
-        html: options.html,
-        text: options.text,
-      }),
-    });
-
-    if (!res.ok) {
-      const body = await res.text();
-      console.error("[notify] Resend failed:", body);
-      return { sent: false, error: body };
-    }
-    return { sent: true };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Email failed";
-    console.error("[notify] Email error:", message);
-    return { sent: false, error: message };
-  }
-}
-
-/** Notify Super Admin that HR submitted payroll and needs approval. */
+/** In-app notify Super Admin that HR submitted payroll and needs approval. */
 export async function notifyPayrollSubmitted(options: {
   companyId: string;
   runId: string;
@@ -101,24 +55,12 @@ export async function notifyPayrollSubmitted(options: {
         },
       });
 
-      const email = await sendEmail({
-        to: user.email,
-        subject: title,
-        text: `${body}\n\nReview & approve: ${linkUrl}`,
-        html: `
-          <p>${body}</p>
-          <p><a href="${linkUrl}" style="display:inline-block;padding:10px 16px;background:#1c1917;color:#fff;text-decoration:none;border-radius:6px;">Review &amp; approve payroll</a></p>
-          <p style="color:#78716c;font-size:12px;">Or open: ${linkUrl}</p>
-        `,
-      });
-
       return {
         userId: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
         notificationId: notification.id,
-        emailSent: email.sent,
       };
     })
   );
