@@ -17,7 +17,7 @@ import {
   shiftDurationMinutes,
   type ParsedPunchRow,
 } from "@/lib/attendance/parse-clock-csv";
-import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
+import { isAttendancePenaltyExempt, isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 import { deviceMatchKeys } from "@/lib/attendance/device-match";
 import {
   ATTENDANCE_SHEET_NOTE_PREFIX,
@@ -110,13 +110,14 @@ export async function ensureDefaultShiftCoverage(companyId: string) {
     select: {
       id: true,
       department: true,
+      jobTitle: true,
       shiftAssignment: { select: { employeeId: true } },
     },
   });
 
   const needAssign = employees.filter(
     (e) =>
-      !isShiftAttendanceExempt(e.department) && !e.shiftAssignment
+      !isShiftAttendanceExempt(e.department, e.jobTitle) && !e.shiftAssignment
   );
 
   for (const chunk of chunkArray(needAssign, 50)) {
@@ -362,6 +363,7 @@ export async function importAttendanceSheetDays(options: {
       lastName: true,
       basicSalaryKobo: true,
       department: true,
+      jobTitle: true,
       shiftAssignment: { select: { shiftId: true } },
     },
   });
@@ -459,7 +461,10 @@ export async function importAttendanceSheetDays(options: {
     const employeeId = matchedNameToId.get(name);
     if (!employeeId) continue;
     const emp = employees.find((e) => e.id === employeeId)!;
-    const exempt = isShiftAttendanceExempt(emp.department);
+    const penaltyExempt = isAttendancePenaltyExempt(
+      emp.department,
+      emp.jobTitle
+    );
 
     for (const day of days) {
       const workDate = startOfDay(day.workDate);
@@ -471,7 +476,7 @@ export async function importAttendanceSheetDays(options: {
       if (day.status === "OFF") continue;
 
       let penaltyKobo = 0n;
-      if (day.penalize && !exempt) {
+      if (day.penalize && !penaltyExempt) {
         penaltyKobo =
           settings.missedShiftPenaltyKobo > 0n
             ? settings.missedShiftPenaltyKobo
@@ -666,10 +671,12 @@ export async function compileAttendancePeriod(options: {
   }
 
   const regulated = employees.filter(
-    (e) => !isShiftAttendanceExempt(e.department) && e.shiftAssignment?.shift
+    (e) =>
+      !isShiftAttendanceExempt(e.department, e.jobTitle) &&
+      e.shiftAssignment?.shift
   );
   const exemptIds = employees
-    .filter((e) => isShiftAttendanceExempt(e.department))
+    .filter((e) => isShiftAttendanceExempt(e.department, e.jobTitle))
     .map((e) => e.id);
 
   type DayRecord = {
@@ -761,12 +768,18 @@ export async function compileAttendancePeriod(options: {
       let penaltyKobo = 0n;
       if (compiled.status === "ABSENT") {
         absentCount += 1;
-        if (settings.missedShiftPenaltyKobo > 0n) {
-          penaltyKobo = settings.missedShiftPenaltyKobo;
-        } else {
-          penaltyKobo = getDailyRateFromMonthly(employee.basicSalaryKobo);
+        const penaltyExempt = isAttendancePenaltyExempt(
+          employee.department,
+          employee.jobTitle
+        );
+        if (!penaltyExempt) {
+          if (settings.missedShiftPenaltyKobo > 0n) {
+            penaltyKobo = settings.missedShiftPenaltyKobo;
+          } else {
+            penaltyKobo = getDailyRateFromMonthly(employee.basicSalaryKobo);
+          }
+          penaltyTotalKobo += penaltyKobo;
         }
-        penaltyTotalKobo += penaltyKobo;
       }
 
       // Skip quiet OFF days with no punches to keep writes small
@@ -871,13 +884,18 @@ export async function applyAttendancePenaltiesToPayroll(options: {
           lastName: true,
           employeeCode: true,
           department: true,
+          jobTitle: true,
         },
       },
     },
   });
 
   const penalizableDays = absentDays.filter(
-    (day) => !isShiftAttendanceExempt(day.employee.department)
+    (day) =>
+      !isAttendancePenaltyExempt(
+        day.employee.department,
+        day.employee.jobTitle
+      )
   );
 
   await prisma.payrollAdjustment.deleteMany({

@@ -7,7 +7,7 @@ import {
   shiftDurationMinutes,
 } from "@/lib/attendance/parse-clock-csv";
 import { parseTimecardText } from "@/lib/attendance/parse-timecard-text";
-import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
+import { isShiftAttendanceExempt, isAttendancePenaltyExempt } from "@/lib/attendance/penalty-exempt";
 import { deviceMatchKeys } from "@/lib/attendance/device-match";
 import {
   mapAttendanceSheetCode,
@@ -28,18 +28,33 @@ describe("deviceMatchKeys", () => {
 });
 
 describe("isShiftAttendanceExempt", () => {
-  it("exempts Management department (any casing)", () => {
+  it("exempts Management from shift regulation", () => {
     expect(isShiftAttendanceExempt("Management")).toBe(true);
     expect(isShiftAttendanceExempt("management")).toBe(true);
     expect(isShiftAttendanceExempt("MANAGEMENT")).toBe(true);
     expect(isShiftAttendanceExempt("Senior Management")).toBe(true);
   });
 
-  it("does not exempt other departments", () => {
+  it("does not treat Admin/Finance as shift-exempt", () => {
+    expect(isShiftAttendanceExempt("Admin", "Admin Assistant")).toBe(false);
+    expect(isShiftAttendanceExempt("Finance", "Head Account")).toBe(false);
     expect(isShiftAttendanceExempt("Floor staff")).toBe(false);
-    expect(isShiftAttendanceExempt("Kitchen")).toBe(false);
     expect(isShiftAttendanceExempt("")).toBe(false);
     expect(isShiftAttendanceExempt(null)).toBe(false);
+  });
+});
+
+describe("isAttendancePenaltyExempt", () => {
+  it("exempts Admin and Finance, but not cashiers", () => {
+    expect(isAttendancePenaltyExempt("Admin", "Admin Assistant")).toBe(true);
+    expect(isAttendancePenaltyExempt("Administration", "HR Admin")).toBe(true);
+    expect(isAttendancePenaltyExempt("Finance", "Head Account")).toBe(true);
+    expect(isAttendancePenaltyExempt("", "Cost Accountant")).toBe(true);
+    expect(isAttendancePenaltyExempt("", "Junior Account")).toBe(true);
+    expect(isAttendancePenaltyExempt("Finance", "Cashier")).toBe(false);
+    expect(isAttendancePenaltyExempt("", "Cashier")).toBe(false);
+    expect(isAttendancePenaltyExempt("Floor", "Waiter")).toBe(false);
+    expect(isAttendancePenaltyExempt("Management")).toBe(true);
   });
 });
 
