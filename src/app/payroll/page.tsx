@@ -63,8 +63,8 @@ export default function PayrollPage() {
         <div>
           <h1 className="text-2xl font-semibold text-stone-900">Payroll</h1>
           <p className="mt-1 text-sm text-stone-500">
-            OmniPeople 4-step wizard — aggregate, guardrails, summary, then
-            Super Admin clearance &amp; filing
+            OmniPeople 4-step wizard — clock attendance feeds salaries, then
+            guardrails, summary, and Super Admin clearance
           </p>
         </div>
         <Button onClick={createRun} disabled={creating}>

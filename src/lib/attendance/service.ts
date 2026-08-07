@@ -629,7 +629,7 @@ export async function applyAttendancePenaltiesToPayroll(options: {
         employeeId,
         type: "ATTENDANCE_PENALTY",
         amountKobo: -agg.amount,
-        description: `Missed ${agg.days} shift${agg.days === 1 ? "" : "s"} (${run.periodMonth}/${run.periodYear})`,
+        description: `Missed ${agg.days} shift${agg.days === 1 ? "" : "s"} from clock attendance (${run.periodMonth}/${run.periodYear})`,
       },
     });
     created.push({
@@ -645,6 +645,45 @@ export async function applyAttendancePenaltiesToPayroll(options: {
   return {
     employeesPenalized: created.length,
     missedShiftDays: penalizableDays.length,
+    penaltyTotalKobo: [...byEmployee.values()]
+      .reduce((s, a) => s + a.amount, 0n)
+      .toString(),
     adjustments: created,
   };
+}
+
+/**
+ * Compile clock attendance for the payroll month, then apply missed-shift
+ * deductions so salary calculation reflects present/absent days.
+ */
+export async function syncAttendanceIntoPayroll(options: {
+  companyId: string;
+  payrollRunId: string;
+}) {
+  const run = await prisma.payrollRun.findFirst({
+    where: { id: options.payrollRunId, companyId: options.companyId },
+    select: {
+      id: true,
+      status: true,
+      periodMonth: true,
+      periodYear: true,
+    },
+  });
+  if (!run) throw new Error("Payroll run not found");
+  if (run.status !== "DRAFT") {
+    throw new Error("Can only sync attendance into draft payroll runs");
+  }
+
+  const compiled = await compileAttendancePeriod({
+    companyId: options.companyId,
+    periodMonth: run.periodMonth,
+    periodYear: run.periodYear,
+  });
+
+  const penalties = await applyAttendancePenaltiesToPayroll({
+    companyId: options.companyId,
+    payrollRunId: run.id,
+  });
+
+  return { compiled, penalties };
 }

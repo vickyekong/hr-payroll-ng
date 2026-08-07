@@ -118,13 +118,23 @@ function PayrollRunDetailInner() {
     setLoading(true);
     const res = await fetch(`/api/payroll/runs/${params.id}/recalculate`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ syncAttendance: true }),
     });
+    const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (res.ok) {
+      const att = data.attendance;
+      if (att) {
+        alert(
+          att.employeesPenalized > 0
+            ? `Payslips recalculated with clock attendance: ${att.missedShiftDays} missed shift(s) deducted for ${att.employeesPenalized} staff.`
+            : `Payslips recalculated. Clock attendance compiled (${att.daysCompiled} day records) — no missed-shift deductions this period.`
+        );
+      }
       loadRun();
       loadPreflight();
     } else {
-      const data = await res.json();
       alert(data.error ?? "Recalculate failed");
     }
   }
@@ -139,13 +149,19 @@ function PayrollRunDetailInner() {
     const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (!res.ok) {
-      alert(data.error ?? "Could not apply attendance penalties");
+      alert(data.error ?? "Could not sync attendance into pay");
       return;
     }
+    const totalNaira = data.penaltyTotalKobo
+      ? (Number(data.penaltyTotalKobo) / 100).toLocaleString("en-NG", {
+          style: "currency",
+          currency: "NGN",
+        })
+      : null;
     alert(
       data.employeesPenalized
-        ? `Applied penalties for ${data.employeesPenalized} employee(s) (${data.missedShiftDays} missed shifts).`
-        : "No attendance penalties for this period."
+        ? `Synced clock attendance into salaries.\n${data.missedShiftDays} missed shift(s) · ${data.employeesPenalized} staff · ${totalNaira ?? ""} deducted.`
+        : `Attendance compiled (${data.daysCompiled ?? 0} day records). No missed-shift deductions for this period.`
     );
     loadRun();
     loadPreflight();

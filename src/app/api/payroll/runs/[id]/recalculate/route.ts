@@ -5,13 +5,43 @@ import {
   recalculatePayrollRun,
   PayrollRunError,
 } from "@/lib/payroll/run-service";
+import { syncAttendanceIntoPayroll } from "@/lib/attendance/service";
+import { z } from "zod";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+const bodySchema = z.object({
+  /** Re-compile clock attendance and refresh missed-shift deductions (default true). */
+  syncAttendance: z.boolean().optional().default(true),
+});
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const session = await requirePermission("runPayroll");
+    let syncAttendance = true;
+    try {
+      const json = await req.json();
+      syncAttendance = bodySchema.parse(json ?? {}).syncAttendance ?? true;
+    } catch {
+      // empty body is fine — default sync on
+    }
+
+    let attendance: Awaited<ReturnType<typeof syncAttendanceIntoPayroll>> | null =
+      null;
+    if (syncAttendance) {
+      try {
+        attendance = await syncAttendanceIntoPayroll({
+          companyId: session.user.companyId,
+          payrollRunId: params.id,
+        });
+      } catch (err) {
+        console.error("Attendance sync during recalculate skipped:", err);
+      }
+    }
 
     const result = await recalculatePayrollRun(
       params.id,
@@ -25,11 +55,28 @@ export async function POST(
         entityType: "PayrollRun",
         entityId: params.id,
         performedById: session.user.id,
-        changes: { employeeCount: result.employeeCount },
+        changes: {
+          employeeCount: result.employeeCount,
+          syncAttendance,
+          employeesPenalized: attendance?.penalties.employeesPenalized ?? 0,
+          missedShiftDays: attendance?.penalties.missedShiftDays ?? 0,
+          penaltyTotalKobo: attendance?.penalties.penaltyTotalKobo ?? "0",
+        },
       },
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      attendance: attendance
+        ? {
+            daysCompiled: attendance.compiled.daysCompiled,
+            absentCount: attendance.compiled.absentCount,
+            employeesPenalized: attendance.penalties.employeesPenalized,
+            missedShiftDays: attendance.penalties.missedShiftDays,
+            penaltyTotalKobo: attendance.penalties.penaltyTotalKobo,
+          }
+        : null,
+    });
   } catch (error) {
     if (error instanceof PayrollRunError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

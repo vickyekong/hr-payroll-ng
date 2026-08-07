@@ -5,15 +5,18 @@ import {
   recalculatePayrollRun,
   PayrollRunError,
 } from "@/lib/payroll/run-service";
-import { applyAttendancePenaltiesToPayroll } from "@/lib/attendance/service";
+import { syncAttendanceIntoPayroll } from "@/lib/attendance/service";
 import { getPayrollPreflight } from "@/lib/payroll/preflight";
 import { z } from "zod";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const createSchema = z.object({
   periodMonth: z.number().min(1).max(12),
   periodYear: z.number().min(2020),
   notes: z.string().optional(),
-  /** Default true — pull missed-shift penalties into the draft run. */
+  /** Default true — compile clock data and deduct missed shifts from salaries. */
   applyAttendancePenalties: z.boolean().optional().default(true),
 });
 
@@ -70,19 +73,22 @@ export async function POST(req: NextRequest) {
     let result = await recalculatePayrollRun(run.id, session.user.companyId);
 
     let penalties: Awaited<
-      ReturnType<typeof applyAttendancePenaltiesToPayroll>
-    > | null = null;
+      ReturnType<typeof syncAttendanceIntoPayroll>
+    >["penalties"] | null = null;
+    let compiled: Awaited<
+      ReturnType<typeof syncAttendanceIntoPayroll>
+    >["compiled"] | null = null;
     if (body.applyAttendancePenalties) {
       try {
-        penalties = await applyAttendancePenaltiesToPayroll({
+        const sync = await syncAttendanceIntoPayroll({
           companyId: session.user.companyId,
           payrollRunId: run.id,
         });
-        if (penalties.employeesPenalized > 0) {
-          result = await recalculatePayrollRun(run.id, session.user.companyId);
-        }
-      } catch {
-        // Attendance may not be compiled for the period — run still succeeds
+        compiled = sync.compiled;
+        penalties = sync.penalties;
+        result = await recalculatePayrollRun(run.id, session.user.companyId);
+      } catch (err) {
+        console.error("Attendance sync on payroll create skipped:", err);
         penalties = null;
       }
     }
@@ -105,6 +111,8 @@ export async function POST(req: NextRequest) {
           employeeCount: result.employeeCount,
           applyAttendancePenalties: body.applyAttendancePenalties,
           employeesPenalized: penalties?.employeesPenalized ?? 0,
+          missedShiftDays: penalties?.missedShiftDays ?? 0,
+          daysCompiled: compiled?.daysCompiled ?? 0,
           preflightBlockers: preflight.blockers,
           preflightWarnings: preflight.warnings,
         },
@@ -116,6 +124,7 @@ export async function POST(req: NextRequest) {
         ...run,
         employeeCount: result.employeeCount,
         attendancePenalties: penalties,
+        attendanceCompiled: compiled,
         preflight,
       },
       { status: 201 }

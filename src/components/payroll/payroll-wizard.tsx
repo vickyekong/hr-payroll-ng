@@ -60,7 +60,7 @@ const STEPS = [
   {
     id: 1,
     title: "Aggregate & pre-flight",
-    blurb: "Pull pay inputs, recalculate, catch missing data",
+    blurb: "Contracts, clock attendance, and deductions",
   },
   {
     id: 2,
@@ -158,6 +158,24 @@ export function PayrollWizard({
 
   const [step, setStep] = useState(defaultStep);
 
+  const attendanceImpact = useMemo(() => {
+    const rows = run.adjustments.filter((a) => a.type === "ATTENDANCE_PENALTY");
+    if (rows.length === 0) return null;
+    let total = 0n;
+    let missed = 0;
+    for (const row of rows) {
+      const amt = BigInt(row.amountKobo);
+      total += amt < 0n ? -amt : amt;
+      const m = row.description?.match(/Missed (\d+)/);
+      if (m) missed += Number(m[1]);
+    }
+    return {
+      employees: rows.length,
+      missedShifts: missed,
+      totalKobo: total.toString(),
+    };
+  }, [run.adjustments]);
+
   useEffect(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 4) {
       setStep(initialStep);
@@ -252,11 +270,32 @@ export function PayrollWizard({
             <CardHeader>
               <CardTitle>Automated data aggregation</CardTitle>
               <p className="text-sm text-stone-500">
-                Contracts, leave deductions, attendance penalties, and
-                adjustments feed this run. Recalculate after any staff change.
+                Salaries use contracts, unpaid leave, and{" "}
+                <strong>clock attendance</strong>: each missed shift deducts one
+                working-day rate from net pay. Recalculate refreshes attendance
+                from the clock machine for this month.
               </p>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
+            <CardContent className="space-y-4">
+              {attendanceImpact && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                  <p className="font-medium">Attendance in this run</p>
+                  <p className="mt-1 text-amber-900/90">
+                    {attendanceImpact.employees} staff ·{" "}
+                    {attendanceImpact.missedShifts} missed shift
+                    {attendanceImpact.missedShifts === 1 ? "" : "s"} ·{" "}
+                    {formatCurrency(BigInt(attendanceImpact.totalKobo))} deducted
+                    from salaries
+                  </p>
+                  <Link
+                    href="/employees?tab=attendance"
+                    className="mt-1 inline-block text-xs font-medium text-amber-900 underline"
+                  >
+                    Review clock report →
+                  </Link>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
               {isDraft && (
                 <>
                   <Button
@@ -264,14 +303,14 @@ export function PayrollWizard({
                     variant="outline"
                     disabled={loading}
                   >
-                    Recalculate all
+                    Recalculate (with attendance)
                   </Button>
                   <Button
                     onClick={onApplyPenalties}
                     variant="outline"
                     disabled={loading}
                   >
-                    Apply attendance penalties
+                    Sync attendance into pay
                   </Button>
                   <Button
                     onClick={onToggleAdjustForm}
@@ -290,6 +329,7 @@ export function PayrollWizard({
                 Refresh pre-flight
               </Button>
               <Button onClick={() => setStep(2)}>Continue to guardrails →</Button>
+              </div>
             </CardContent>
           </Card>
 
