@@ -13,6 +13,7 @@ import {
   employeeStatusLabel,
 } from "@/lib/employees/status";
 import { EmployeeLifecyclePanel } from "@/components/employees/lifecycle-panel";
+import { EmployeeDocumentsPanel } from "@/components/employees/employee-documents-panel";
 
 export default async function EmployeeDetailPage({
   params,
@@ -66,6 +67,10 @@ export default async function EmployeeDetailPage({
           on their behalf
         </p>
         <EmployeeLifecyclePanel employeeId={employee.id} />
+      </div>
+
+      <div className="mb-8">
+        <EmployeeDocumentsPanel employeeId={employee.id} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

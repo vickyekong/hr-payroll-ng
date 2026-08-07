@@ -220,6 +220,9 @@ export async function PATCH(
           status: "DRAFT",
           approvedById: null,
           approvedAt: null,
+          ...(body.reason?.trim()
+            ? { notes: `Sent back by Super Admin: ${body.reason.trim()}` }
+            : {}),
         };
         break;
 

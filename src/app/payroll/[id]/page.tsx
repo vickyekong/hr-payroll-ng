@@ -1,18 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AppShell } from "@/components/layout/app-shell";
 import {
   PayrollWizard,
   type WizardRun,
 } from "@/components/payroll/payroll-wizard";
+import { PayrollClearanceBar } from "@/components/payroll/payroll-clearance-bar";
 import type { PreflightData } from "@/components/payroll/preflight-panel";
 import { can } from "@/lib/permissions";
 
-export default function PayrollRunDetailPage() {
+function PayrollRunDetailInner() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const [run, setRun] = useState<WizardRun | null>(null);
   const [preflight, setPreflight] = useState<PreflightData | null>(null);
@@ -31,6 +33,10 @@ export default function PayrollRunDetailPage() {
   const canApprove = session?.user?.role
     ? can(session.user.role, "approvePayroll")
     : false;
+
+  const stepParam = Number(searchParams.get("step") ?? "");
+  const initialStep =
+    stepParam >= 1 && stepParam <= 4 ? stepParam : undefined;
 
   const loadPreflight = useCallback(() => {
     if (!params.id) return;
@@ -71,12 +77,12 @@ export default function PayrollRunDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
-  async function doAction(action: string) {
+  async function doAction(action: string, extra?: { reason?: string }) {
     setLoading(true);
     const res = await fetch(`/api/payroll/runs/${params.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, reason: extra?.reason }),
     });
     const data = await res.json().catch(() => ({}));
     setLoading(false);
@@ -97,6 +103,15 @@ export default function PayrollRunDetailPage() {
 
     loadRun();
     loadPreflight();
+  }
+
+  function rejectWithReason() {
+    const reason = window.prompt(
+      "Optional note for HR (why this run is being sent back):",
+      ""
+    );
+    if (reason === null) return;
+    void doAction("reject", { reason: reason.trim() || undefined });
   }
 
   async function recalculate() {
@@ -193,8 +208,19 @@ export default function PayrollRunDetailPage() {
     run.payslips.length > 0 &&
     (preflight?.canSubmit ?? false);
 
+  const showClearance = run.status === "UNDER_REVIEW" && canApprove;
+
   return (
     <AppShell>
+      {showClearance && (
+        <PayrollClearanceBar
+          periodMonth={run.periodMonth}
+          periodYear={run.periodYear}
+          loading={loading}
+          onApprove={() => void doAction("approve")}
+          onReject={rejectWithReason}
+        />
+      )}
       <PayrollWizard
         run={run}
         preflight={preflight}
@@ -205,14 +231,30 @@ export default function PayrollRunDetailPage() {
         driveConnected={driveConnected}
         submitNotice={submitNotice}
         showAdjustForm={showAdjustForm}
+        initialStep={initialStep}
         onToggleAdjustForm={() => setShowAdjustForm((v) => !v)}
         onRefreshPreflight={loadPreflight}
         onRecalculate={recalculate}
         onApplyPenalties={applyAttendancePenalties}
         onAction={doAction}
+        onReject={rejectWithReason}
         onAddAdjustment={addAdjustment}
         onDeleteAdjustment={deleteAdjustment}
       />
     </AppShell>
+  );
+}
+
+export default function PayrollRunDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell>
+          <p className="text-stone-500">Loading payroll wizard…</p>
+        </AppShell>
+      }
+    >
+      <PayrollRunDetailInner />
+    </Suspense>
   );
 }

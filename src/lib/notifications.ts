@@ -12,7 +12,7 @@ export function getAppBaseUrl(): string {
 }
 
 export function payrollReviewUrl(runId: string): string {
-  return `${getAppBaseUrl()}/payroll/${runId}`;
+  return `${getAppBaseUrl()}/payroll/${runId}?step=4`;
 }
 
 /** In-app notify Super Admin that HR submitted payroll and needs approval. */

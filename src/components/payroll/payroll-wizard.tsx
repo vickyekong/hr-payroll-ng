@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge, payrollStatusVariant } from "@/components/ui/badge";
@@ -107,11 +107,13 @@ export function PayrollWizard({
   driveConnected,
   submitNotice,
   showAdjustForm,
+  initialStep,
   onToggleAdjustForm,
   onRefreshPreflight,
   onRecalculate,
   onApplyPenalties,
   onAction,
+  onReject,
   onAddAdjustment,
   onDeleteAdjustment,
 }: {
@@ -130,25 +132,39 @@ export function PayrollWizard({
     }>;
   } | null;
   showAdjustForm: boolean;
+  initialStep?: number;
   onToggleAdjustForm: () => void;
   onRefreshPreflight: () => void;
   onRecalculate: () => void;
   onApplyPenalties: () => void;
-  onAction: (action: string) => void;
+  onAction: (action: string, extra?: { reason?: string }) => void;
+  onReject?: () => void;
   onAddAdjustment: (e: React.FormEvent<HTMLFormElement>) => void;
   onDeleteAdjustment: (id: string) => void;
 }) {
   const isDraft = run.status === "DRAFT";
   const defaultStep =
-    run.status === "APPROVED" || run.status === "PAID"
-      ? 4
-      : run.status === "UNDER_REVIEW"
-        ? 3
-        : preflight && !preflight.canSubmit
-          ? 2
-          : 1;
+    initialStep && initialStep >= 1 && initialStep <= 4
+      ? initialStep
+      : run.status === "APPROVED" || run.status === "PAID"
+        ? 4
+        : run.status === "UNDER_REVIEW"
+          ? canApprove
+            ? 4
+            : 3
+          : preflight && !preflight.canSubmit
+            ? 2
+            : 1;
 
   const [step, setStep] = useState(defaultStep);
+
+  useEffect(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 4) {
+      setStep(initialStep);
+    } else if (run.status === "UNDER_REVIEW" && canApprove) {
+      setStep(4);
+    }
+  }, [initialStep, run.status, canApprove]);
 
   const totals = useMemo(
     () =>
@@ -684,6 +700,10 @@ export function PayrollWizard({
                 <Button
                   variant="outline"
                   onClick={() => {
+                    if (onReject) {
+                      onReject();
+                      return;
+                    }
                     if (confirm("Send this payroll back to HR as draft?")) {
                       onAction("reject");
                     }

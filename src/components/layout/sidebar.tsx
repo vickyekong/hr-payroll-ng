@@ -14,6 +14,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { useCompanyBrand } from "@/components/brand/company-brand-provider";
 import type { UserRole } from "@prisma/client";
 import { NotificationsBell } from "@/components/layout/notifications-bell";
+import { MobileApprovalsBadge } from "@/components/layout/mobile-approvals-badge";
 
 const navItems: Array<{
   href: string;
@@ -268,6 +269,7 @@ export function MobileNav() {
                 : "Workspace"}
           </p>
         </div>
+        <MobileApprovalsBadge />
       </header>
 
       {/* Backdrop */}
