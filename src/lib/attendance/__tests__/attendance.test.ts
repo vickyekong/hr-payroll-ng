@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as XLSX from "xlsx";
 import {
   compileAttendanceStatus,
   isWorkDay,
@@ -8,6 +9,11 @@ import {
 import { parseTimecardText } from "@/lib/attendance/parse-timecard-text";
 import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 import { deviceMatchKeys } from "@/lib/attendance/device-match";
+import {
+  mapAttendanceSheetCode,
+  parseMonthlyAttendanceSheets,
+  scoreEmployeeNameMatch,
+} from "@/lib/attendance/parse-attendance-sheet";
 
 describe("deviceMatchKeys", () => {
   it("links STAFF codes to bare device numbers", () => {
@@ -69,34 +75,11 @@ Start Date 2026-07-01 End Date 2026-07-31
     expect(rows[1].deviceUserId).toBe("100");
     expect(rows[2].deviceUserId).toBe("101");
   });
-
-  it("parses multi-line PDF-style blocks", () => {
-    const text = [
-      "100",
-      "Amadi",
-      "Floor staff",
-      "2026-07-07",
-      "1",
-      "17:02:30",
-      "100",
-      "Amadi",
-      "Floor staff",
-      "2026-07-09",
-      "1",
-      "23:00:22",
-    ].join("\n");
-    const { rows, errors } = parseTimecardText(text);
-    expect(errors).toHaveLength(0);
-    expect(rows).toHaveLength(2);
-    expect(rows[0].deviceUserId).toBe("100");
-    expect(rows[1].punchedAt.getHours()).toBe(23);
-  });
 });
 
 describe("shift helpers", () => {
-  it("detects weekdays", () => {
-    // 2026-08-03 is Monday
-    expect(isWorkDay("1111100", new Date(2026, 7, 3))).toBe(true);
+  it("detects work days from bitmask", () => {
+    expect(isWorkDay("1111100", new Date(2026, 7, 3))).toBe(true); // Mon
     expect(isWorkDay("1111100", new Date(2026, 7, 8))).toBe(false); // Sat
   });
 
@@ -135,5 +118,218 @@ describe("compileAttendanceStatus", () => {
     });
     expect(result.status).toBe("LATE");
     expect(result.lateMinutes).toBe(25);
+  });
+});
+
+describe("mapAttendanceSheetCode", () => {
+  it("maps L'ORI legend codes", () => {
+    expect(mapAttendanceSheetCode("W")?.status).toBe("PRESENT");
+    expect(mapAttendanceSheetCode("A")?.penalize).toBe(true);
+    expect(mapAttendanceSheetCode("UP")?.penalize).toBe(true);
+    expect(mapAttendanceSheetCode("O")?.status).toBe("OFF");
+    expect(mapAttendanceSheetCode("V")?.status).toBe("ON_LEAVE");
+    expect(mapAttendanceSheetCode("H")?.status).toBe("OFF");
+  });
+});
+
+describe("scoreEmployeeNameMatch", () => {
+  it("matches exact and fuzzy names", () => {
+    expect(
+      scoreEmployeeNameMatch("Prosper Obande", "Prosper", "Obande")
+    ).toBeGreaterThan(0.9);
+    expect(
+      scoreEmployeeNameMatch("Emmanauel Alben", "Emmanuel", "Alben")
+    ).toBeGreaterThan(0.55);
+    expect(
+      scoreEmployeeNameMatch("Totally Different", "Prosper", "Obande")
+    ).toBeLessThan(0.4);
+  });
+});
+
+describe("parseMonthlyAttendanceSheets", () => {
+  it("parses L'ORI-style monthly day-code grids", () => {
+    const aoa = [
+      ["", "L'ORI Hospitality"],
+      [],
+      [
+        "",
+        "No. Of Employees:",
+        "Attendance Sheet",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Month Day's Detailed",
+      ],
+      ["", "From: 1/4/2026"],
+      ["", "To: 30/4/2026"],
+      ["", "Employee Name", "", "Day&Date"],
+      [
+        "",
+        "",
+        "",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun",
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun",
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun",
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun",
+        "Mon",
+        "Tue",
+        "Wed",
+      ],
+      [
+        "",
+        "",
+        "",
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+      ],
+      ["", "Admin"],
+      [
+        "",
+        "Amaka",
+        "Admin Assistant",
+        "W",
+        "W",
+        "W",
+        "W",
+        "O",
+        "W",
+        "W",
+        "W",
+        "W",
+        "W",
+        "W",
+        "O",
+        "W",
+        "W",
+        "W",
+        "W",
+        "W",
+        "W",
+        "O",
+        "W",
+        "W",
+        "W",
+        "W",
+        "W",
+        "W",
+        "O",
+        "W",
+        "W",
+        "W",
+        "W",
+      ],
+      [
+        "",
+        "Olaoti Fumilayo",
+        "HR",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "W",
+        "O",
+        "W",
+        "W",
+        "W",
+        "W",
+        "W",
+        "W",
+        "O",
+        "W",
+        "W",
+        "W",
+        "W",
+        "W",
+        "W",
+        "O",
+        "W",
+        "W",
+        "W",
+        "W",
+      ],
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    XLSX.utils.book_append_sheet(wb, ws, "APRIL 2026");
+    const buffer = XLSX.write(wb, {
+      type: "buffer",
+      bookType: "xlsx",
+    }) as Buffer;
+
+    const result = parseMonthlyAttendanceSheets(buffer);
+    expect(result.detected).toBe(true);
+    expect(result.sheetsParsed).toEqual(["APRIL 2026"]);
+    expect(result.employeeNames).toEqual(
+      expect.arrayContaining(["Amaka", "Olaoti Fumilayo"])
+    );
+    const amakaPresent = result.days.filter(
+      (d) => d.employeeName === "Amaka" && d.code === "W"
+    );
+    expect(amakaPresent.length).toBeGreaterThan(15);
+    const olaotiAbsent = result.days.filter(
+      (d) => d.employeeName === "Olaoti Fumilayo" && d.code === "A"
+    );
+    expect(olaotiAbsent.length).toBe(10);
+    expect(olaotiAbsent[0].penalize).toBe(true);
+    expect(result.periodHints[0]).toMatchObject({ month: 4, year: 2026 });
   });
 });

@@ -3,10 +3,12 @@ import { requirePermission, handleApiError } from "@/lib/api-auth";
 import {
   importPunches,
   importPunchesFromCsv,
+  importAttendanceSheetDays,
 } from "@/lib/attendance/service";
 import { parseClockPdf } from "@/lib/attendance/parse-clock-pdf";
 import { parseClockExcel } from "@/lib/attendance/parse-clock-excel";
 import { parseTimecardText } from "@/lib/attendance/parse-timecard-text";
+import { parseMonthlyAttendanceSheets } from "@/lib/attendance/parse-attendance-sheet";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -38,9 +40,7 @@ export async function POST(req: NextRequest) {
       const mime = (file.type || "").toLowerCase();
       const buffer = Buffer.from(await file.arrayBuffer());
 
-      const isPdf =
-        ext === "pdf" ||
-        mime.includes("pdf");
+      const isPdf = ext === "pdf" || mime.includes("pdf");
       const isExcel =
         ext === "xlsx" ||
         ext === "xls" ||
@@ -65,22 +65,35 @@ export async function POST(req: NextRequest) {
           source: "PDF_IMPORT",
         });
       } else if (isExcel) {
-        const parsed = parseClockExcel(buffer);
-        if (parsed.rows.length === 0) {
-          return NextResponse.json(
-            {
-              error: "No punches found in Excel file",
-              parseErrors: parsed.errors,
-            },
-            { status: 400 }
-          );
+        // Prefer L'ORI / Arami monthly attendance sheets (day codes) when detected
+        const sheetProbe = parseMonthlyAttendanceSheets(buffer);
+        if (sheetProbe.detected) {
+          result = await importAttendanceSheetDays({
+            companyId: session.user.companyId,
+            buffer,
+          });
+        } else {
+          const parsed = parseClockExcel(buffer);
+          if (parsed.rows.length === 0) {
+            return NextResponse.json(
+              {
+                error:
+                  "Could not read this Excel file as an attendance sheet or punch export. Expected monthly day codes (W/A/O) or clock punch columns.",
+                parseErrors: [
+                  ...sheetProbe.errors,
+                  ...parsed.errors,
+                ].slice(0, 20),
+              },
+              { status: 400 }
+            );
+          }
+          result = await importPunches({
+            companyId: session.user.companyId,
+            rows: parsed.rows,
+            parseErrors: parsed.errors,
+            source: "EXCEL_IMPORT",
+          });
         }
-        result = await importPunches({
-          companyId: session.user.companyId,
-          rows: parsed.rows,
-          parseErrors: parsed.errors,
-          source: "EXCEL_IMPORT",
-        });
       } else {
         // CSV / TSV / TXT — also accept Time Card text dumps
         const text = buffer.toString("utf8");
@@ -128,7 +141,13 @@ export async function POST(req: NextRequest) {
       data: {
         companyId: session.user.companyId,
         action: "IMPORT",
-        entityType: "AttendancePunch",
+        entityType:
+          result &&
+          typeof result === "object" &&
+          "format" in result &&
+          result.format === "ATTENDANCE_SHEET"
+            ? "AttendanceDay"
+            : "AttendancePunch",
         entityId: result.batch,
         performedById: session.user.id,
         changes: result,

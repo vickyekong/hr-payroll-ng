@@ -320,7 +320,7 @@ export function EmployeesAttendanceTab() {
     setMessage("");
     setMessageTone("ok");
     try {
-      setPhase("Importing clock punches from file…");
+      setPhase("Reading attendance document…");
       const form = new FormData();
       form.append("file", file);
       const importRes = await fetch("/api/attendance/import", {
@@ -351,6 +351,10 @@ export function EmployeesAttendanceTab() {
       }
       setPeriodMode("month");
 
+      const isSheet = importData.format === "ATTENDANCE_SHEET";
+
+      // Sheet imports already wrote AttendanceDay rows; still run analyse to
+      // fill any punch-only gaps without wiping sheet days.
       const compileData = await analyseMonth(targetMonth, targetYear);
 
       const linked =
@@ -358,10 +362,22 @@ export function EmployeesAttendanceTab() {
           ? ` Auto-linked ${importData.autoLinkedDeviceIds.length} clock IDs to staff codes.`
           : "";
 
+      const unmatched =
+        isSheet && importData.unmatchedNames?.length
+          ? ` Unmatched names: ${importData.unmatchedNames.slice(0, 8).join(", ")}${
+              importData.unmatchedNames.length > 8 ? "…" : ""
+            }.`
+          : "";
+
       setMessageTone("ok");
       setMessage(
-        `Imported ${importData.imported} punches (${importData.mapped} matched, ${importData.unmapped} unmatched). ` +
-          `Report for ${getMonthName(targetMonth)} ${targetYear}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.staffCompiled ?? "—"} staff scored.${linked}`
+        isSheet
+          ? `Read attendance sheet (${(importData.sheetsParsed ?? []).length} month tab${
+              (importData.sheetsParsed ?? []).length === 1 ? "" : "s"
+            }): matched ${importData.employeesMatched} staff · ${importData.imported} day records · ${importData.absentDays ?? 0} absences. ` +
+              `Report for ${getMonthName(targetMonth)} ${targetYear}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts.${unmatched}`
+          : `Imported ${importData.imported} punches (${importData.mapped} matched, ${importData.unmapped} unmatched). ` +
+              `Report for ${getMonthName(targetMonth)} ${targetYear}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.staffCompiled ?? "—"} staff scored.${linked}`
       );
       setDetailFilter("ABSENT");
       await loadReport({
@@ -539,11 +555,11 @@ export function EmployeesAttendanceTab() {
           Clock machine · import & report
         </h2>
         <p className="mt-1 text-sm text-stone-500">
-          Upload a CSV, PDF, or Excel export from the biometric clock. OmniPeople
-          matches badge IDs to staff (including <code className="text-xs">STAFF-001</code>{" "}
-          ↔ device <code className="text-xs">1</code>), scores each day against
-          the default shift, then you can run a <strong>monthly</strong> or{" "}
-          <strong>weekly</strong> attendance report.
+          Upload a biometric punch export (CSV / PDF / Excel){" "}
+          <strong>or</strong> an L&apos;ORI / Arami monthly attendance sheet
+          (day codes W / A / O / UP / V…). OmniPeople detects the format, matches
+          staff by badge ID or name, then you can run a <strong>monthly</strong>{" "}
+          or <strong>weekly</strong> report.
         </p>
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -690,10 +706,10 @@ export function EmployeesAttendanceTab() {
         </p>
 
         <p className="mt-3 text-xs text-stone-500">
-          Matching uses each staff member&apos;s clock machine ID when set, or
-          the number in their staff code.{" "}
+          Punch files match by clock ID / staff code; attendance sheets match by
+          employee name (fuzzy).{" "}
           {employeesMissingDevice > 0 && (
-            <>{employeesMissingDevice} active staff have no saved clock ID yet (auto-link runs on import). </>
+            <>{employeesMissingDevice} active staff have no saved clock ID yet (auto-link runs on punch import). </>
           )}
           {unmappedPunches > 0 && (
             <>{unmappedPunches} punches this month are still unmatched. </>
