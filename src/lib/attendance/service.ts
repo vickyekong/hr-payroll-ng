@@ -4,6 +4,8 @@ import {
   endOfDay,
   startOfMonth,
   endOfMonth,
+  startOfWeek,
+  endOfWeek,
 } from "date-fns";
 import { prisma } from "@/lib/db";
 import { getDailyRateFromMonthly } from "@/lib/payroll/calculate-payroll";
@@ -31,6 +33,13 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 }
 
 export { deviceMatchKeys };
+
+/** Monday–Sunday week containing the given date (local). */
+export function weekBounds(anchor: Date): { start: Date; end: Date } {
+  const start = startOfWeek(startOfDay(anchor), { weekStartsOn: 1 });
+  const end = endOfWeek(startOfDay(anchor), { weekStartsOn: 1 });
+  return { start, end };
+}
 
 async function buildEmployeeDeviceMap(companyId: string) {
   const employees = await prisma.employee.findMany({
@@ -304,15 +313,31 @@ export async function importPunchesFromCsv(options: {
 
 export async function compileAttendancePeriod(options: {
   companyId: string;
-  periodMonth: number;
-  periodYear: number;
+  periodMonth?: number;
+  periodYear?: number;
+  /** Inclusive local date range override (e.g. a week). */
+  periodStart?: Date;
+  periodEnd?: Date;
 }) {
   await ensureDefaultShiftCoverage(options.companyId);
 
-  const periodStart = startOfMonth(
-    new Date(options.periodYear, options.periodMonth - 1, 1)
-  );
-  const periodEnd = endOfMonth(periodStart);
+  let periodStart: Date;
+  let periodEnd: Date;
+  if (options.periodStart && options.periodEnd) {
+    periodStart = startOfDay(options.periodStart);
+    periodEnd = startOfDay(options.periodEnd);
+  } else if (options.periodMonth && options.periodYear) {
+    periodStart = startOfMonth(
+      new Date(options.periodYear, options.periodMonth - 1, 1)
+    );
+    periodEnd = endOfMonth(periodStart);
+  } else {
+    throw new Error("Provide month/year or a start/end date range");
+  }
+
+  if (periodEnd < periodStart) {
+    throw new Error("periodEnd must be on or after periodStart");
+  }
 
   const [settings, employees, punches, leaveRequests] = await Promise.all([
     prisma.attendanceSettings.upsert({
@@ -522,8 +547,8 @@ export async function compileAttendancePeriod(options: {
     penaltyTotalKobo: penaltyTotalKobo.toString(),
     punchesUsed: punches.length,
     period: {
-      month: options.periodMonth,
-      year: options.periodYear,
+      month: periodStart.getMonth() + 1,
+      year: periodStart.getFullYear(),
       from: dateKey(periodStart),
       to: dateKey(periodEnd),
     },

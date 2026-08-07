@@ -117,15 +117,54 @@ function downloadCsv(filename: string, headers: string[], rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
+function toLocalIso(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Monday of the week containing `d` (weekStartsOn = 1). */
+function mondayOf(d: Date): Date {
+  const day = d.getDay(); // 0 Sun … 6 Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff);
+  return mon;
+}
+
+function sundayOfMonday(monday: Date): Date {
+  return new Date(
+    monday.getFullYear(),
+    monday.getMonth(),
+    monday.getDate() + 6
+  );
+}
+
+function formatWeekLabel(weekOfIso: string): string {
+  const [y, m, d] = weekOfIso.split("-").map(Number);
+  const monday = mondayOf(new Date(y, m - 1, d));
+  const sunday = sundayOfMonday(monday);
+  const fmt = (dt: Date) =>
+    dt.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  return `${fmt(monday)} – ${fmt(sunday)}`;
+}
+
 export function EmployeesAttendanceTab() {
   const now = new Date();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [periodMode, setPeriodMode] = useState<"month" | "week">("month");
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
+  const [weekOf, setWeekOf] = useState(toLocalIso(mondayOf(now)));
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState("");
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"ok" | "err">("ok");
+  const [periodLabel, setPeriodLabel] = useState("");
   const [summary, setSummary] = useState({
     present: 0,
     late: 0,
@@ -150,14 +189,30 @@ export function EmployeesAttendanceTab() {
   const [shiftEnd, setShiftEnd] = useState("17:00");
 
   const loadReport = useCallback(
-    async (m = month, y = year, filter = detailFilter) => {
+    async (opts?: {
+      mode?: "month" | "week";
+      month?: number;
+      year?: number;
+      weekOf?: string;
+      filter?: string;
+    }) => {
+      const mode = opts?.mode ?? periodMode;
+      const m = opts?.month ?? month;
+      const y = opts?.year ?? year;
+      const w = opts?.weekOf ?? weekOf;
+      const filter = opts?.filter ?? detailFilter;
+
       setLoading(true);
       setPhase("Loading report…");
       const qs = new URLSearchParams({
-        month: String(m),
-        year: String(y),
         ...(filter ? { status: filter } : {}),
       });
+      if (mode === "week") {
+        qs.set("weekOf", w);
+      } else {
+        qs.set("month", String(m));
+        qs.set("year", String(y));
+      }
       const res = await fetch(`/api/attendance?${qs}`);
       const data = await res.json();
       setLoading(false);
@@ -180,23 +235,30 @@ export function EmployeesAttendanceTab() {
       setUnmappedPunches(data.unmappedPunches ?? 0);
       setEmployeesMissingDevice(data.employeesMissingDevice ?? 0);
       setShiftsCount(data.shifts?.length ?? 0);
+      if (data.period?.mode === "week" && data.period.from && data.period.to) {
+        setPeriodLabel(`${data.period.from} → ${data.period.to}`);
+      } else {
+        setPeriodLabel(`${getMonthName(m)} ${y}`);
+      }
     },
-    [month, year, detailFilter]
+    [periodMode, month, year, weekOf, detailFilter]
   );
 
   useEffect(() => {
-    // Repair bad years left from earlier mis-parsed clock dates (e.g. 2001).
     setYear((y) => clampReportYear(y));
   }, []);
 
   useEffect(() => {
     void loadReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month, year, detailFilter]);
+  }, [periodMode, month, year, weekOf, detailFilter]);
 
   async function analyseMonth(m: number, y: number) {
     const safeMonth = clampReportMonth(m, month);
-    const safeYear = clampReportYear(y, year < 2020 ? new Date().getFullYear() : year);
+    const safeYear = clampReportYear(
+      y,
+      year < 2020 ? new Date().getFullYear() : year
+    );
     if (safeMonth !== month) setMonth(safeMonth);
     if (safeYear !== year) setYear(safeYear);
 
@@ -217,9 +279,39 @@ export function EmployeesAttendanceTab() {
         absentCount: number;
         punchesUsed?: number;
         penaltyTotalKobo: string;
+        period?: { from: string; to: string };
       }),
       month: safeMonth,
       year: safeYear,
+    };
+  }
+
+  async function analyseWeek(weekIso: string) {
+    const [y, m, d] = weekIso.split("-").map(Number);
+    const monday = mondayOf(new Date(y, m - 1, d));
+    const iso = toLocalIso(monday);
+    if (iso !== weekOf) setWeekOf(iso);
+
+    setPhase("Analysing weekly attendance…");
+    const compileRes = await fetch("/api/attendance/compile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ weekOf: iso }),
+    });
+    const compileData = await compileRes.json();
+    if (!compileRes.ok) {
+      throw new Error(formatApiError(compileData, "Weekly analysis failed"));
+    }
+    return {
+      ...(compileData as {
+        daysCompiled: number;
+        staffCompiled?: number;
+        absentCount: number;
+        punchesUsed?: number;
+        penaltyTotalKobo: string;
+        period?: { from: string; to: string };
+      }),
+      weekOf: iso,
     };
   }
 
@@ -257,6 +349,7 @@ export function EmployeesAttendanceTab() {
         setMonth(targetMonth);
         setYear(targetYear);
       }
+      setPeriodMode("month");
 
       const compileData = await analyseMonth(targetMonth, targetYear);
 
@@ -271,7 +364,12 @@ export function EmployeesAttendanceTab() {
           `Report for ${getMonthName(targetMonth)} ${targetYear}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.staffCompiled ?? "—"} staff scored.${linked}`
       );
       setDetailFilter("ABSENT");
-      await loadReport(targetMonth, targetYear, "ABSENT");
+      await loadReport({
+        mode: "month",
+        month: targetMonth,
+        year: targetYear,
+        filter: "ABSENT",
+      });
     } catch (err) {
       setMessageTone("err");
       setMessage(err instanceof Error ? err.message : "Upload failed");
@@ -285,15 +383,53 @@ export function EmployeesAttendanceTab() {
     setMessage("");
     setMessageTone("ok");
     try {
-      const compileData = await analyseMonth(month, year);
-      setMessageTone("ok");
-      setMessage(
-        `Re-analysed ${getMonthName(compileData.month)} ${compileData.year}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.punchesUsed ?? 0} punches used.`
-      );
-      await loadReport(compileData.month, compileData.year);
+      if (periodMode === "week") {
+        const compileData = await analyseWeek(weekOf);
+        setMessageTone("ok");
+        setMessage(
+          `Weekly report ${formatWeekLabel(compileData.weekOf)}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.punchesUsed ?? 0} punches used.`
+        );
+        await loadReport({ mode: "week", weekOf: compileData.weekOf });
+      } else {
+        const compileData = await analyseMonth(month, year);
+        setMessageTone("ok");
+        setMessage(
+          `Re-analysed ${getMonthName(compileData.month)} ${compileData.year}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.punchesUsed ?? 0} punches used.`
+        );
+        await loadReport({
+          mode: "month",
+          month: compileData.month,
+          year: compileData.year,
+        });
+      }
     } catch (err) {
       setMessageTone("err");
       setMessage(err instanceof Error ? err.message : "Analyse failed");
+      setLoading(false);
+      setPhase("");
+    }
+  }
+
+  async function analyseWeekOnly() {
+    setPeriodMode("week");
+    setLoading(true);
+    setMessage("");
+    setMessageTone("ok");
+    try {
+      const compileData = await analyseWeek(weekOf);
+      setMessageTone("ok");
+      setMessage(
+        `Weekly report ${formatWeekLabel(compileData.weekOf)}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.punchesUsed ?? 0} punches used.`
+      );
+      setDetailFilter("ABSENT");
+      await loadReport({
+        mode: "week",
+        weekOf: compileData.weekOf,
+        filter: "ABSENT",
+      });
+    } catch (err) {
+      setMessageTone("err");
+      setMessage(err instanceof Error ? err.message : "Weekly analysis failed");
       setLoading(false);
       setPhase("");
     }
@@ -327,8 +463,12 @@ export function EmployeesAttendanceTab() {
   }
 
   function exportStaffReport() {
+    const stamp =
+      periodMode === "week"
+        ? `week-${weekOf}`
+        : `${year}-${String(month).padStart(2, "0")}`;
     downloadCsv(
-      `attendance-staff-${year}-${String(month).padStart(2, "0")}.csv`,
+      `attendance-staff-${stamp}.csv`,
       [
         "employee_code",
         "name",
@@ -361,8 +501,12 @@ export function EmployeesAttendanceTab() {
   }
 
   function exportDailyReport() {
+    const stamp =
+      periodMode === "week"
+        ? `week-${weekOf}`
+        : `${year}-${String(month).padStart(2, "0")}`;
     downloadCsv(
-      `attendance-daily-${year}-${String(month).padStart(2, "0")}.csv`,
+      `attendance-daily-${stamp}.csv`,
       [
         "date",
         "employee_code",
@@ -403,32 +547,68 @@ export function EmployeesAttendanceTab() {
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div>
-            <Label>Report month</Label>
+            <Label>Period</Label>
             <select
               className="mt-1 flex h-9 rounded-md border border-stone-300 bg-white px-2 text-sm"
-              value={month}
-              onChange={(e) => setMonth(Number(e.target.value))}
+              value={periodMode}
+              onChange={(e) =>
+                setPeriodMode(e.target.value === "week" ? "week" : "month")
+              }
             >
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                <option key={m} value={m}>
-                  {getMonthName(m)}
-                </option>
-              ))}
+              <option value="month">Month</option>
+              <option value="week">Week (Mon–Sun)</option>
             </select>
           </div>
-          <div>
-            <Label>Year</Label>
-            <Input
-              type="number"
-              className="mt-1 w-24"
-              min={2020}
-              max={new Date().getFullYear() + 1}
-              value={year}
-              onChange={(e) =>
-                setYear(clampReportYear(Number(e.target.value), year))
-              }
-            />
-          </div>
+          {periodMode === "month" ? (
+            <>
+              <div>
+                <Label>Report month</Label>
+                <select
+                  className="mt-1 flex h-9 rounded-md border border-stone-300 bg-white px-2 text-sm"
+                  value={month}
+                  onChange={(e) => setMonth(Number(e.target.value))}
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                    <option key={m} value={m}>
+                      {getMonthName(m)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label>Year</Label>
+                <Input
+                  type="number"
+                  className="mt-1 w-24"
+                  min={2020}
+                  max={new Date().getFullYear() + 1}
+                  value={year}
+                  onChange={(e) =>
+                    setYear(clampReportYear(Number(e.target.value), year))
+                  }
+                />
+              </div>
+            </>
+          ) : (
+            <div>
+              <Label>Week of (any day in the week)</Label>
+              <Input
+                type="date"
+                className="mt-1 w-[11rem]"
+                value={weekOf}
+                min="2020-01-01"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  const [y, m, d] = v.split("-").map(Number);
+                  setWeekOf(toLocalIso(mondayOf(new Date(y, m - 1, d))));
+                }}
+              />
+              <p className="mt-1 text-[11px] text-stone-500">
+                {formatWeekLabel(weekOf)}
+              </p>
+            </div>
+          )}
           <input
             ref={fileRef}
             type="file"
@@ -454,8 +634,18 @@ export function EmployeesAttendanceTab() {
             disabled={loading}
             onClick={() => void reanalyse()}
           >
-            Analyse month
+            {periodMode === "week" ? "Analyse week" : "Analyse month"}
           </Button>
+          {periodMode === "month" && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading}
+              onClick={() => void analyseWeekOnly()}
+            >
+              Analyse this week
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -558,7 +748,11 @@ export function EmployeesAttendanceTab() {
               Attendance analysis
             </h3>
             <p className="text-sm text-stone-500">
-              {getMonthName(month)} {year} · penalty total{" "}
+              {periodLabel ||
+                (periodMode === "week"
+                  ? formatWeekLabel(weekOf)
+                  : `${getMonthName(month)} ${year}`)}{" "}
+              · penalty total{" "}
               {formatCurrency(BigInt(summary.penaltyKobo || "0"))}
             </p>
             <p className="mt-1 text-xs text-stone-400">

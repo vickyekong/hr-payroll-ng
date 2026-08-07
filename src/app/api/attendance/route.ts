@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, handleApiError } from "@/lib/api-auth";
-import { startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth, startOfDay } from "date-fns";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
 import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
+import { weekBounds } from "@/lib/attendance/service";
+
+function parseLocalDate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function toLocalIso(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,9 +25,57 @@ export async function GET(req: NextRequest) {
     const month = Number(searchParams.get("month") ?? new Date().getMonth() + 1);
     const year = Number(searchParams.get("year") ?? new Date().getFullYear());
     const status = searchParams.get("status");
+    const weekOf = searchParams.get("weekOf");
+    const fromParam = searchParams.get("from");
+    const toParam = searchParams.get("to");
 
-    const periodStart = startOfMonth(new Date(year, month - 1, 1));
-    const periodEnd = endOfMonth(periodStart);
+    let periodStart: Date;
+    let periodEnd: Date;
+    let periodLabel: {
+      month: number;
+      year: number;
+      from: string;
+      to: string;
+      mode: string;
+    };
+
+    if (weekOf && /^\d{4}-\d{2}-\d{2}$/.test(weekOf)) {
+      const bounds = weekBounds(parseLocalDate(weekOf));
+      periodStart = bounds.start;
+      periodEnd = bounds.end;
+      periodLabel = {
+        month: periodStart.getMonth() + 1,
+        year: periodStart.getFullYear(),
+        from: toLocalIso(periodStart),
+        to: toLocalIso(periodEnd),
+        mode: "week",
+      };
+    } else if (
+      fromParam &&
+      toParam &&
+      /^\d{4}-\d{2}-\d{2}$/.test(fromParam) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(toParam)
+    ) {
+      periodStart = startOfDay(parseLocalDate(fromParam));
+      periodEnd = startOfDay(parseLocalDate(toParam));
+      periodLabel = {
+        month: periodStart.getMonth() + 1,
+        year: periodStart.getFullYear(),
+        from: fromParam,
+        to: toParam,
+        mode: "range",
+      };
+    } else {
+      periodStart = startOfMonth(new Date(year, month - 1, 1));
+      periodEnd = endOfMonth(periodStart);
+      periodLabel = {
+        month,
+        year,
+        from: toLocalIso(periodStart),
+        to: toLocalIso(periodEnd),
+        mode: "month",
+      };
+    }
 
     const [settings, shifts, allDays, unmappedPunches, employeesMissingDevice] =
       await Promise.all([
@@ -210,7 +271,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       serializeBigInts({
-        period: { month, year },
+        period: periodLabel,
         settings,
         shifts,
         summary,
