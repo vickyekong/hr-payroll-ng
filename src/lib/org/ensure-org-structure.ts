@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { DEFAULT_DEPARTMENTS } from "@/lib/org/default-departments";
 
 let tableEnsured = false;
+/** Skip heavy seed work on warm serverless instances after first success per company. */
+const orgEnsuredForCompany = new Set<string>();
 
 export async function ensureJobDescriptionTable() {
   if (tableEnsured) return;
@@ -37,35 +39,42 @@ export async function ensureJobDescriptionTable() {
 }
 
 /**
- * Additive only — never overwrite employee assignments or delete custom catalog rows.
- * Seeds canonical departments and mirrors employee job titles into the JobDescription catalog.
+ * Fast, additive seed. Safe to call on page load — caches per company in-process
+ * and only inserts missing default departments (no per-employee job-title upserts).
  */
 export async function ensureOrgStructure(companyId: string) {
+  if (orgEnsuredForCompany.has(companyId)) return;
+
   await ensureJobDescriptionTable();
 
-  for (const name of DEFAULT_DEPARTMENTS) {
-    await prisma.department.upsert({
-      where: { companyId_name: { companyId, name } },
-      update: {},
-      create: { companyId, name },
-    });
-  }
-
-  const employees = await prisma.employee.findMany({
+  const existing = await prisma.department.findMany({
     where: { companyId },
-    select: { jobTitle: true, department: true },
+    select: { name: true },
   });
+  const have = new Set(existing.map((d) => d.name));
+  const missing = DEFAULT_DEPARTMENTS.filter((name) => !have.has(name));
 
-  const jobNames = new Set<string>();
-  for (const e of employees) {
-    if (e.jobTitle?.trim()) jobNames.add(e.jobTitle.trim());
-  }
-
-  for (const name of jobNames) {
-    await prisma.jobDescription.upsert({
-      where: { companyId_name: { companyId, name } },
-      update: {},
-      create: { companyId, name },
+  if (missing.length > 0) {
+    await prisma.department.createMany({
+      data: missing.map((name) => ({ companyId, name })),
+      skipDuplicates: true,
     });
   }
+
+  orgEnsuredForCompany.add(companyId);
+}
+
+/** Call when a job title is assigned so the catalog stays in sync without page-load work. */
+export async function ensureJobDescriptionName(
+  companyId: string,
+  name: string
+) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  await ensureJobDescriptionTable();
+  await prisma.jobDescription.upsert({
+    where: { companyId_name: { companyId, name: trimmed } },
+    update: {},
+    create: { companyId, name: trimmed },
+  });
 }

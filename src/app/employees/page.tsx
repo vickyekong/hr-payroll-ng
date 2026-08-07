@@ -23,30 +23,50 @@ export default async function EmployeesPage() {
 
   const companyId = session.user.companyId;
 
+  // Lightweight seed (cached per warm instance). Never block the directory on catalog upserts.
   try {
     await ensureOrgStructure(companyId);
   } catch (error) {
     console.error("Org structure ensure skipped:", error);
   }
 
-  const [employees, driveStatus, allDepartments, allJobDescriptions] =
-    await Promise.all([
-      prisma.employee.findMany({
-        where: { companyId },
-        orderBy: { employeeCode: "asc" },
-      }),
-      getGoogleDriveStatus(companyId),
-      prisma.department.findMany({
-        where: { companyId },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      }),
-      prisma.jobDescription.findMany({
-        where: { companyId },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      }),
-    ]);
+  // Sequential reads — connection_limit=1 on Supabase pooler cannot fan out Promise.all.
+  const employees = await prisma.employee.findMany({
+    where: { companyId },
+    orderBy: { employeeCode: "asc" },
+    select: {
+      id: true,
+      employeeCode: true,
+      firstName: true,
+      lastName: true,
+      department: true,
+      jobTitle: true,
+      status: true,
+      sex: true,
+      basicSalaryKobo: true,
+      housingAllowanceKobo: true,
+      transportAllowanceKobo: true,
+      otherTaxableAllowancesKobo: true,
+    },
+  });
+  const allDepartments = await prisma.department.findMany({
+    where: { companyId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+  const allJobDescriptions = await prisma.jobDescription.findMany({
+    where: { companyId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+
+  let driveConnected = false;
+  try {
+    const driveStatus = await getGoogleDriveStatus(companyId);
+    driveConnected = driveStatus.connected;
+  } catch (error) {
+    console.error("Drive status skipped:", error);
+  }
 
   const tableRows = serializeBigInts(employees).map((emp) => ({
     id: emp.id,
@@ -73,7 +93,7 @@ export default async function EmployeesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ExportActions kind="staff" driveConnected={driveStatus.connected} />
+          <ExportActions kind="staff" driveConnected={driveConnected} />
           <Button asChild>
             <Link href="/employees/new">Add employee</Link>
           </Button>

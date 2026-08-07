@@ -11,6 +11,7 @@ import { startLifecycle } from "@/lib/lifecycle/service";
 import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 import { isEmploymentEnded } from "@/lib/employees/status";
 import { ensureEmployeeStatusSchema } from "@/lib/ensure-employee-status-schema";
+import { ensureJobDescriptionName } from "@/lib/org/ensure-org-structure";
 import { can } from "@/lib/permissions";
 import { z } from "zod";
 
@@ -140,6 +141,12 @@ export async function PATCH(
         }),
       },
     });
+
+    if (body.jobTitle?.trim()) {
+      await ensureJobDescriptionName(session.user.companyId, body.jobTitle).catch(
+        () => null
+      );
+    }
 
     const effectiveDepartment = body.department ?? existing.department;
     const shiftExempt = isShiftAttendanceExempt(effectiveDepartment);
