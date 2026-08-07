@@ -74,6 +74,34 @@ function statusVariant(
   }
 }
 
+function clampReportYear(value: number, fallback = new Date().getFullYear()) {
+  const max = new Date().getFullYear() + 1;
+  if (!Number.isFinite(value) || value < 2020 || value > max) return fallback;
+  return Math.trunc(value);
+}
+
+function clampReportMonth(value: number, fallback = new Date().getMonth() + 1) {
+  if (!Number.isFinite(value) || value < 1 || value > 12) return fallback;
+  return Math.trunc(value);
+}
+
+function formatApiError(data: unknown, fallback: string) {
+  if (!data || typeof data !== "object") return fallback;
+  const err = (data as { error?: unknown }).error;
+  if (typeof err === "string" && err.trim()) return err;
+  if (Array.isArray(err)) {
+    return err
+      .map((item) =>
+        item && typeof item === "object" && "message" in item
+          ? String((item as { message: unknown }).message)
+          : null
+      )
+      .filter(Boolean)
+      .join("; ") || fallback;
+  }
+  return fallback;
+}
+
 function downloadCsv(filename: string, headers: string[], rows: string[][]) {
   const escape = (v: string) =>
     /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
@@ -157,27 +185,41 @@ export function EmployeesAttendanceTab() {
   );
 
   useEffect(() => {
+    // Repair bad years left from earlier mis-parsed clock dates (e.g. 2001).
+    setYear((y) => clampReportYear(y));
+  }, []);
+
+  useEffect(() => {
     void loadReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month, year, detailFilter]);
 
   async function analyseMonth(m: number, y: number) {
+    const safeMonth = clampReportMonth(m, month);
+    const safeYear = clampReportYear(y, year < 2020 ? new Date().getFullYear() : year);
+    if (safeMonth !== month) setMonth(safeMonth);
+    if (safeYear !== year) setYear(safeYear);
+
     setPhase("Analysing punches into daily attendance…");
     const compileRes = await fetch("/api/attendance/compile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ month: m, year: y }),
+      body: JSON.stringify({ month: safeMonth, year: safeYear }),
     });
     const compileData = await compileRes.json();
     if (!compileRes.ok) {
-      throw new Error(compileData.error ?? "Analysis failed");
+      throw new Error(formatApiError(compileData, "Analysis failed"));
     }
-    return compileData as {
-      daysCompiled: number;
-      staffCompiled?: number;
-      absentCount: number;
-      punchesUsed?: number;
-      penaltyTotalKobo: string;
+    return {
+      ...(compileData as {
+        daysCompiled: number;
+        staffCompiled?: number;
+        absentCount: number;
+        punchesUsed?: number;
+        penaltyTotalKobo: string;
+      }),
+      month: safeMonth,
+      year: safeYear,
     };
   }
 
@@ -203,8 +245,14 @@ export function EmployeesAttendanceTab() {
         );
       }
 
-      const targetMonth = importData.periodHint?.month ?? month;
-      const targetYear = importData.periodHint?.year ?? year;
+      const targetMonth = clampReportMonth(
+        importData.periodHint?.month ?? month,
+        month
+      );
+      const targetYear = clampReportYear(
+        importData.periodHint?.year ?? year,
+        year
+      );
       if (targetMonth !== month || targetYear !== year) {
         setMonth(targetMonth);
         setYear(targetYear);
@@ -240,9 +288,9 @@ export function EmployeesAttendanceTab() {
       const compileData = await analyseMonth(month, year);
       setMessageTone("ok");
       setMessage(
-        `Re-analysed ${getMonthName(month)} ${year}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.punchesUsed ?? 0} punches used.`
+        `Re-analysed ${getMonthName(compileData.month)} ${compileData.year}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.punchesUsed ?? 0} punches used.`
       );
-      await loadReport();
+      await loadReport(compileData.month, compileData.year);
     } catch (err) {
       setMessageTone("err");
       setMessage(err instanceof Error ? err.message : "Analyse failed");
@@ -373,8 +421,12 @@ export function EmployeesAttendanceTab() {
             <Input
               type="number"
               className="mt-1 w-24"
+              min={2020}
+              max={new Date().getFullYear() + 1}
               value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
+              onChange={(e) =>
+                setYear(clampReportYear(Number(e.target.value), year))
+              }
             />
           </div>
           <input

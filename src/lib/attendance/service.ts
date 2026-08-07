@@ -245,14 +245,33 @@ export async function importPunches(options: {
     }
   }
 
-  const punchDates = rows.map((r) => r.punchedAt.getTime()).filter(Boolean);
-  const periodHint =
-    punchDates.length > 0
-      ? {
-          month: new Date(Math.min(...punchDates)).getMonth() + 1,
-          year: new Date(Math.min(...punchDates)).getFullYear(),
-        }
-      : null;
+  const nowYear = new Date().getFullYear();
+  const plausible = rows
+    .map((r) => r.punchedAt)
+    .filter((d) => {
+      const y = d.getFullYear();
+      return y >= 2020 && y <= nowYear + 1;
+    });
+  const hintSource = plausible.length > 0 ? plausible : [];
+  let periodHint: { month: number; year: number } | null = null;
+  if (hintSource.length > 0) {
+    // Prefer the most common calendar month among plausible punch dates
+    const counts = new Map<string, number>();
+    for (const d of hintSource) {
+      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    let best = "";
+    let bestN = 0;
+    for (const [key, n] of counts) {
+      if (n >= bestN) {
+        best = key;
+        bestN = n;
+      }
+    }
+    const [y, m] = best.split("-").map(Number);
+    periodHint = { year: y, month: m };
+  }
 
   return {
     batch,

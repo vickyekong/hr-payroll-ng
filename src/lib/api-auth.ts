@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import type { UserRole } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 
 export async function getSession() {
   return getServerSession(authOptions);
@@ -33,9 +34,23 @@ export class AuthError extends Error {
   }
 }
 
+function formatZodError(error: ZodError): string {
+  const parts = error.issues.map((issue) => {
+    const path = issue.path.length ? issue.path.join(".") : "input";
+    if (path === "year" && issue.code === "too_small") {
+      return "Year must be 2020 or later — check the report year (clock files sometimes mis-read old dates).";
+    }
+    return `${path}: ${issue.message}`;
+  });
+  return parts.join("; ") || "Invalid input";
+}
+
 export function handleApiError(error: unknown) {
   if (error instanceof AuthError) {
     return NextResponse.json({ error: error.message }, { status: error.status });
+  }
+  if (error instanceof ZodError) {
+    return NextResponse.json({ error: formatZodError(error) }, { status: 400 });
   }
   if (error instanceof Error) {
     console.error(error);
