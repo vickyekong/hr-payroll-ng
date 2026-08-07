@@ -11,15 +11,17 @@ import {
   type EmployeeTableRow,
 } from "@/components/employees/employees-table";
 import { EmployeesAttendanceTab } from "@/components/employees/employees-attendance-tab";
+import { OrgChartPanel } from "@/components/employees/org-chart-panel";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 
-type TabId = "staff" | "jobs" | "departments" | "attendance";
+type TabId = "staff" | "jobs" | "departments" | "org" | "attendance";
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "staff", label: "Staff directory" },
   { id: "jobs", label: "Job descriptions" },
   { id: "departments", label: "Departments" },
+  { id: "org", label: "Org chart" },
   { id: "attendance", label: "Clock machine & attendance" },
 ];
 
@@ -27,6 +29,7 @@ function tabFromSearch(value: string | null): TabId {
   if (value === "attendance") return "attendance";
   if (value === "jobs" || value === "job-descriptions") return "jobs";
   if (value === "departments") return "departments";
+  if (value === "org" || value === "org-chart") return "org";
   return "staff";
 }
 
@@ -34,6 +37,7 @@ function hrefForTab(tab: TabId): string {
   if (tab === "staff") return "/employees";
   if (tab === "jobs") return "/employees?tab=jobs";
   if (tab === "departments") return "/employees?tab=departments";
+  if (tab === "org") return "/employees?tab=org";
   return "/employees?tab=attendance";
 }
 
@@ -136,6 +140,8 @@ export function EmployeesPageClient({
           </CardContent>
         </Card>
       )}
+
+      {tab === "org" && <OrgChartPanel employees={employees} />}
 
       {tab === "attendance" && <EmployeesAttendanceTab />}
     </>

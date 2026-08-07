@@ -5,7 +5,9 @@ import { prisma } from "@/lib/db";
 
 export async function POST() {
   try {
-    const session = await requirePermission("manageLeave");
+    const session = await requirePermission("manageHrDesk");
+    const { ensureHrDeskSchema } = await import("@/lib/ensure-hr-desk-schema");
+    await ensureHrDeskSchema();
     const result = await syncHrDeskInbox(session.user.companyId);
 
     await prisma.auditLog.create({

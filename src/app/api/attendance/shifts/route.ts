@@ -19,7 +19,7 @@ const assignSchema = z.object({
 
 export async function GET() {
   try {
-    const session = await requirePermission("manageEmployees");
+    const session = await requirePermission("manageAttendance");
     const shifts = await prisma.shiftTemplate.findMany({
       where: { companyId: session.user.companyId },
       orderBy: { name: "asc" },
@@ -46,7 +46,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requirePermission("manageEmployees");
+    const session = await requirePermission("manageAttendance");
     const json = await req.json();
 
     if (json.assign) {

@@ -12,7 +12,7 @@ const patchSchema = z.object({
 
 export async function GET() {
   try {
-    const session = await requirePermission("manageEmployees");
+    const session = await requirePermission("manageAttendance");
     const settings = await prisma.attendanceSettings.upsert({
       where: { companyId: session.user.companyId },
       create: { companyId: session.user.companyId },
@@ -30,7 +30,7 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await requirePermission("manageEmployees");
+    const session = await requirePermission("manageAttendance");
     const body = patchSchema.parse(await req.json());
 
     const settings = await prisma.attendanceSettings.upsert({

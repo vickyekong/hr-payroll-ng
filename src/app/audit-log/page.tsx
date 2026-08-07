@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -37,14 +38,23 @@ const ENTITY_TYPES = [
   "PayrollAdjustment",
   "LeaveRequest",
   "StatutoryConfig",
+  "HrDeskMessage",
 ];
+
+function currentMonthValue() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
 
 export default function AuditLogPage() {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [entityType, setEntityType] = useState("");
+  const [exportMonth, setExportMonth] = useState(currentMonthValue);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [banner, setBanner] = useState("");
 
   const loadLogs = useCallback(
     (cursor?: string, append = false) => {
@@ -77,6 +87,29 @@ export default function AuditLogPage() {
     return text.length > 80 ? `${text.slice(0, 80)}…` : text;
   }
 
+  async function exportCsv() {
+    setExporting(true);
+    setBanner("");
+    const params = new URLSearchParams({ month: exportMonth });
+    if (entityType) params.set("entityType", entityType);
+    const res = await fetch(`/api/audit-logs/export?${params}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setBanner(data.error ?? "Export failed");
+      setExporting(false);
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit-log-${exportMonth}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setExporting(false);
+    setBanner(`Downloaded audit-log-${exportMonth}.csv`);
+  }
+
   return (
     <AppShell>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
@@ -86,25 +119,52 @@ export default function AuditLogPage() {
             Immutable record of payroll and HR actions
           </p>
         </div>
-        <div>
-          <Label htmlFor="entityFilter" className="text-xs text-stone-500">
-            Filter by entity
-          </Label>
-          <select
-            id="entityFilter"
-            value={entityType}
-            onChange={(e) => setEntityType(e.target.value)}
-            className="mt-1 flex h-9 rounded-md border border-stone-300 px-3 text-sm"
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label htmlFor="entityFilter" className="text-xs text-stone-500">
+              Filter by entity
+            </Label>
+            <select
+              id="entityFilter"
+              value={entityType}
+              onChange={(e) => setEntityType(e.target.value)}
+              className="mt-1 flex h-9 rounded-md border border-stone-300 px-3 text-sm"
+            >
+              <option value="">All entities</option>
+              {ENTITY_TYPES.filter(Boolean).map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label htmlFor="exportMonth" className="text-xs text-stone-500">
+              Export month
+            </Label>
+            <Input
+              id="exportMonth"
+              type="month"
+              value={exportMonth}
+              onChange={(e) => setExportMonth(e.target.value)}
+              className="mt-1 h-9 w-[10.5rem]"
+            />
+          </div>
+          <Button
+            variant="outline"
+            disabled={exporting}
+            onClick={() => void exportCsv()}
           >
-            <option value="">All entities</option>
-            {ENTITY_TYPES.filter(Boolean).map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+            {exporting ? "Exporting…" : "Export CSV"}
+          </Button>
         </div>
       </div>
+
+      {banner && (
+        <p className="mb-4 rounded-md bg-stone-100 px-3 py-2 text-sm text-stone-700">
+          {banner}
+        </p>
+      )}
 
       <Card>
         <CardHeader>

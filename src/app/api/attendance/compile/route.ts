@@ -11,7 +11,7 @@ const bodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requirePermission("manageEmployees");
+    const session = await requirePermission("manageAttendance");
     const body = bodySchema.parse(await req.json());
     const result = await compileAttendancePeriod({
       companyId: session.user.companyId,

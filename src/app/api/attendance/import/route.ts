@@ -18,7 +18,7 @@ function extensionOf(name: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requirePermission("manageEmployees");
+    const session = await requirePermission("manageAttendance");
     const contentType = req.headers.get("content-type") ?? "";
 
     let result;

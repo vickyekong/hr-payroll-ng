@@ -7,7 +7,7 @@ import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await requirePermission("manageEmployees");
+    const session = await requirePermission("manageAttendance");
     const { searchParams } = new URL(req.url);
     const month = Number(searchParams.get("month") ?? new Date().getMonth() + 1);
     const year = Number(searchParams.get("year") ?? new Date().getFullYear());

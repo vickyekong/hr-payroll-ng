@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requirePermission, handleApiError } from "@/lib/api-auth";
+import { requirePermission, handleApiError, AuthError } from "@/lib/api-auth";
 import { nairaToKobo } from "@/lib/money";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
 import {
@@ -11,6 +11,7 @@ import { startLifecycle } from "@/lib/lifecycle/service";
 import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 import { isEmploymentEnded } from "@/lib/employees/status";
 import { ensureEmployeeStatusSchema } from "@/lib/ensure-employee-status-schema";
+import { can } from "@/lib/permissions";
 import { z } from "zod";
 
 const realName = (label: string) =>
@@ -88,6 +89,21 @@ export async function PATCH(
     const session = await requirePermission("manageEmployees");
     await ensureEmployeeStatusSchema();
     const body = updateSchema.parse(await req.json());
+
+    const compensationFields = [
+      body.basicSalary,
+      body.housingAllowance,
+      body.transportAllowance,
+      body.otherTaxableAllowances,
+      body.nonTaxableReimbursements,
+      body.annualRent,
+    ];
+    if (
+      compensationFields.some((v) => v !== undefined) &&
+      !can(session.user.role, "manageCompensation")
+    ) {
+      throw new AuthError("Forbidden: compensation edits require manageCompensation", 403);
+    }
 
     const existing = await prisma.employee.findFirst({
       where: { id: params.id, companyId: session.user.companyId },

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { koboToNaira } from "@/lib/money";
 import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
 import { EMPLOYEE_STATUS_OPTIONS } from "@/lib/employees/status";
+import { can } from "@/lib/permissions";
 
 interface EmployeeData {
   id: string;
@@ -42,6 +44,10 @@ interface EmployeeData {
 export default function EditEmployeePage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
+  const canEditPay = session?.user?.role
+    ? can(session.user.role, "manageCompensation")
+    : false;
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -88,7 +94,7 @@ export default function EditEmployeePage() {
     setError("");
 
     const form = new FormData(e.currentTarget);
-    const payload = {
+    const payload: Record<string, unknown> = {
       firstName: form.get("firstName"),
       lastName: form.get("lastName"),
       department: form.get("department"),
@@ -100,12 +106,6 @@ export default function EditEmployeePage() {
       shiftId: shiftExempt
         ? null
         : String(form.get("shiftId") || "") || null,
-      basicSalary: Number(form.get("basicSalary")),
-      housingAllowance: Number(form.get("housingAllowance") || 0),
-      transportAllowance: Number(form.get("transportAllowance") || 0),
-      otherTaxableAllowances: Number(form.get("otherTaxableAllowances") || 0),
-      nonTaxableReimbursements: Number(form.get("nonTaxableReimbursements") || 0),
-      annualRent: Number(form.get("annualRent") || 0),
       bankName: form.get("bankName") || undefined,
       bankAccountNumber: form.get("bankAccountNumber") || undefined,
       tin: form.get("tin") || undefined,
@@ -114,6 +114,19 @@ export default function EditEmployeePage() {
       nextOfKinName: form.get("nextOfKinName") || undefined,
       nextOfKinPhone: form.get("nextOfKinPhone") || undefined,
     };
+
+    if (canEditPay) {
+      payload.basicSalary = Number(form.get("basicSalary"));
+      payload.housingAllowance = Number(form.get("housingAllowance") || 0);
+      payload.transportAllowance = Number(form.get("transportAllowance") || 0);
+      payload.otherTaxableAllowances = Number(
+        form.get("otherTaxableAllowances") || 0
+      );
+      payload.nonTaxableReimbursements = Number(
+        form.get("nonTaxableReimbursements") || 0
+      );
+      payload.annualRent = Number(form.get("annualRent") || 0);
+    }
 
     const res = await fetch(`/api/employees/${params.id}`, {
       method: "PATCH",
@@ -295,6 +308,7 @@ export default function EditEmployeePage() {
               </div>
             </div>
 
+            {canEditPay ? (
             <div className="border-t border-stone-100 pt-4">
               <p className="mb-3 text-sm font-medium text-stone-700">
                 Compensation (₦)
@@ -358,8 +372,31 @@ export default function EditEmployeePage() {
                     className="mt-1"
                   />
                 </div>
+                <div>
+                  <Label htmlFor="nonTaxableReimbursements">
+                    Non-taxable reimbursements
+                  </Label>
+                  <Input
+                    id="nonTaxableReimbursements"
+                    name="nonTaxableReimbursements"
+                    type="number"
+                    step="0.01"
+                    defaultValue={koboToNaira(
+                      BigInt(employee.nonTaxableReimbursementsKobo)
+                    )}
+                    className="mt-1"
+                  />
+                </div>
               </div>
             </div>
+            ) : (
+            <div className="border-t border-stone-100 pt-4">
+              <p className="text-sm text-stone-500">
+                Compensation is view-only for your role. Ask a Super Admin or HR
+                user with pay access to change salary fields.
+              </p>
+            </div>
+            )}
 
             <div className="border-t border-stone-100 pt-4">
               <p className="mb-3 text-sm font-medium text-stone-700">Bank & statutory</p>

@@ -8,6 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import {
+  HR_DESK_REPLY_TEMPLATES,
+  previewTemplateBody,
+  type ReplyTemplateId,
+} from "@/lib/hr-desk/templates";
 
 interface EmployeeOption {
   id: string;
@@ -15,6 +20,13 @@ interface EmployeeOption {
   firstName: string;
   lastName: string;
   department: string;
+}
+
+interface HrUserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
 }
 
 interface DeskMessage {
@@ -28,9 +40,11 @@ interface DeskMessage {
   category: string;
   status: string;
   employeeId: string | null;
+  assigneeUserId?: string | null;
   draftMessageId: string | null;
   notes: string | null;
   employee?: EmployeeOption | null;
+  assigneeUser?: HrUserOption | null;
 }
 
 function categoryVariant(
@@ -60,10 +74,12 @@ export default function HrDeskClient() {
   const [connected, setConnected] = useState(false);
   const [messages, setMessages] = useState<DeskMessage[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [hrUsers, setHrUsers] = useState<HrUserOption[]>([]);
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(focusId);
   const [notes, setNotes] = useState("");
+  const [templateId, setTemplateId] = useState<ReplyTemplateId>("standard_approve");
   const [draftPreview, setDraftPreview] = useState<{
     subject: string;
     body: string;
@@ -84,17 +100,16 @@ export default function HrDeskClient() {
     const data = await res.json();
     setLoading(false);
     if (!res.ok) {
-      setBanner(data.error ?? "Failed to load HR Desk");
+      setBanner(data.error ?? "Failed to load");
       return;
     }
-    setMailbox(data.mailbox);
-    setLastSyncAt(data.lastSyncAt);
+    setMailbox(data.mailbox ?? null);
+    setLastSyncAt(data.lastSyncAt ?? null);
     setConnected(Boolean(data.connected));
     setMessages(data.messages ?? []);
     setEmployees(data.employees ?? []);
-    if (focusId) setSelectedId(focusId);
-    else if (data.messages?.[0]) setSelectedId((cur) => cur ?? data.messages[0].id);
-  }, [category, status, focusId]);
+    setHrUsers(data.hrUsers ?? []);
+  }, [category, status]);
 
   useEffect(() => {
     void load();
@@ -120,32 +135,13 @@ export default function HrDeskClient() {
     await load();
   }
 
-  async function assignStaff(employeeId: string) {
+  async function patchSelected(payload: Record<string, unknown>) {
     if (!selected) return;
     setLoading(true);
     const res = await fetch(`/api/hr-desk/${selected.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ employeeId: employeeId || null }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setBanner(data.error ?? "Assign failed");
-      return;
-    }
-    setMessages((prev) =>
-      prev.map((m) => (m.id === data.id ? { ...m, ...data } : m))
-    );
-  }
-
-  async function setCategoryForSelected(next: string) {
-    if (!selected) return;
-    setLoading(true);
-    const res = await fetch(`/api/hr-desk/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category: next }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     setLoading(false);
@@ -156,27 +152,43 @@ export default function HrDeskClient() {
     setMessages((prev) =>
       prev.map((m) => (m.id === data.id ? { ...m, ...data } : m))
     );
+    if (data.draftPreview) setDraftPreview(data.draftPreview);
+    return data;
+  }
+
+  async function assignStaff(employeeId: string) {
+    await patchSelected({ employeeId: employeeId || null });
+  }
+
+  async function assignHrUser(assigneeUserId: string) {
+    await patchSelected({ assigneeUserId: assigneeUserId || null });
+  }
+
+  async function setCategoryForSelected(next: string) {
+    await patchSelected({ category: next });
+  }
+
+  async function setStatusForSelected(next: string) {
+    const data = await patchSelected({ status: next });
+    if (data) setBanner(`Status set to ${next}.`);
   }
 
   async function decide(action: "approve" | "reject") {
     if (!selected) return;
-    setLoading(true);
     setDraftPreview(null);
-    const res = await fetch(`/api/hr-desk/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, notes: notes || undefined }),
+    const data = await patchSelected({
+      action,
+      notes: notes || undefined,
+      templateId:
+        action === "approve"
+          ? templateId === "standard_reject"
+            ? "standard_approve"
+            : templateId
+          : templateId === "standard_approve"
+            ? "standard_reject"
+            : templateId,
     });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setBanner(data.error ?? "Action failed");
-      return;
-    }
-    setMessages((prev) =>
-      prev.map((m) => (m.id === data.id ? { ...m, ...data } : m))
-    );
-    if (data.draftPreview) setDraftPreview(data.draftPreview);
+    if (!data) return;
     setBanner(
       data.draftId
         ? "Decision saved. A draft reply was created in Gmail for HR to review and send."
@@ -190,8 +202,8 @@ export default function HrDeskClient() {
         <div>
           <h1 className="text-2xl font-semibold text-stone-900">HR Desk</h1>
           <p className="mt-1 text-sm text-stone-500">
-            Company inbox synced for leave and other HR requests — sort, assign
-            to staff, approve/reject with Gmail draft replies
+            Company inbox — triage, assign to HR and staff, use reply templates,
+            approve/reject with Gmail drafts
           </p>
           <p className="mt-2 text-xs text-stone-500">
             {connected
@@ -256,6 +268,7 @@ export default function HrDeskClient() {
           >
             <option value="">All</option>
             <option value="NEW">New</option>
+            <option value="TRIAGED">Triaged</option>
             <option value="ASSIGNED">Assigned</option>
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
@@ -298,8 +311,9 @@ export default function HrDeskClient() {
                     <p className="mt-1 truncate text-sm font-medium text-stone-900">
                       {m.subject}
                     </p>
-                    <p className="truncate text-xs text-stone-500">
-                      {m.fromName || m.fromEmail} · {m.status}
+                    <p className="mt-0.5 truncate text-xs text-stone-500">
+                      {m.status}
+                      {m.assigneeUser ? ` · ${m.assigneeUser.name}` : ""}
                     </p>
                   </button>
                 </li>
@@ -352,7 +366,7 @@ export default function HrDeskClient() {
                     </select>
                   </div>
                   <div>
-                    <Label>Assign to staff</Label>
+                    <Label>Assign to requesting staff</Label>
                     <select
                       className="mt-1 flex h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm"
                       value={selected.employeeId ?? ""}
@@ -366,6 +380,65 @@ export default function HrDeskClient() {
                       ))}
                     </select>
                   </div>
+                  <div>
+                    <Label>Assign to HR user</Label>
+                    <select
+                      className="mt-1 flex h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm"
+                      value={selected.assigneeUserId ?? ""}
+                      onChange={(e) => void assignHrUser(e.target.value)}
+                    >
+                      <option value="">Unassigned</option>
+                      {hrUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.role.replace("_", " ")})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Workflow status</Label>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={loading || selected.status === "TRIAGED"}
+                        onClick={() => void setStatusForSelected("TRIAGED")}
+                      >
+                        Mark triaged
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={loading || selected.status === "CLOSED"}
+                        onClick={() => void setStatusForSelected("CLOSED")}
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="replyTemplate">Reply template</Label>
+                  <select
+                    id="replyTemplate"
+                    className="mt-1 flex h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm"
+                    value={templateId}
+                    onChange={(e) =>
+                      setTemplateId(e.target.value as ReplyTemplateId)
+                    }
+                  >
+                    {HR_DESK_REPLY_TEMPLATES.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                  <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap rounded-md border border-stone-100 bg-stone-50 p-2 text-[11px] text-stone-600">
+                    {previewTemplateBody(templateId, selected.category)}
+                  </pre>
                 </div>
 
                 <div>

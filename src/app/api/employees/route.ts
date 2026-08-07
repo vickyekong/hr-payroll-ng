@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requirePermission, handleApiError } from "@/lib/api-auth";
+import { requirePermission, handleApiError, AuthError } from "@/lib/api-auth";
 import { nairaToKobo } from "@/lib/money";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
 import {
@@ -10,6 +10,7 @@ import {
 import { startLifecycle } from "@/lib/lifecycle/service";
 import { isEmploymentEnded } from "@/lib/employees/status";
 import { ensureEmployeeStatusSchema } from "@/lib/ensure-employee-status-schema";
+import { can } from "@/lib/permissions";
 import { z } from "zod";
 
 const realName = (label: string) =>
@@ -75,6 +76,13 @@ export async function POST(req: NextRequest) {
     const session = await requirePermission("manageEmployees");
     await ensureEmployeeStatusSchema();
     const body = employeeSchema.parse(await req.json());
+
+    if (!can(session.user.role, "manageCompensation")) {
+      throw new AuthError(
+        "Forbidden: creating staff with pay requires manageCompensation",
+        403
+      );
+    }
 
     const employee = await prisma.employee.create({
       data: {

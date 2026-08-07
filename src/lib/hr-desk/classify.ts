@@ -1,4 +1,8 @@
 import type { HrDeskCategory, LeaveType } from "@prisma/client";
+import {
+  buildTemplatedReply,
+  type ReplyTemplateId,
+} from "@/lib/hr-desk/templates";
 
 const CATEGORY_RULES: Array<{ category: HrDeskCategory; patterns: RegExp[] }> = [
   {
@@ -124,7 +128,18 @@ export function buildDecisionDraft(options: {
   staffName: string;
   originalSubject: string;
   notes?: string | null;
+  templateId?: ReplyTemplateId;
 }): { subject: string; body: string } {
+  if (options.templateId) {
+    return buildTemplatedReply({
+      templateId: options.templateId,
+      category: options.category,
+      staffName: options.staffName,
+      originalSubject: options.originalSubject,
+      notes: options.notes,
+    });
+  }
+
   const label =
     options.category === "LEAVE"
       ? "leave request"

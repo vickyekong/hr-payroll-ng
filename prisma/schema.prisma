@@ -170,6 +170,7 @@ model User {
   leaveApprovals      LeaveRequest[] @relation("LeaveApprover")
   auditLogs           AuditLog[]
   notifications       Notification[]
+  hrDeskAssigned      HrDeskMessage[] @relation("HrDeskAssignee")
 }
 
 model Employee {
@@ -429,6 +430,9 @@ model HrDeskMessage {
   status          HrDeskStatus   @default(NEW)
   employeeId      String?
   employee        Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  /// HR portal user responsible for triaging / closing this mail
+  assigneeUserId  String?
+  assigneeUser    User?          @relation("HrDeskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
   leaveRequestId  String?
   draftMessageId  String?
   notes           String?
@@ -440,6 +444,7 @@ model HrDeskMessage {
   @@index([companyId, status, receivedAt])
   @@index([companyId, category])
   @@index([employeeId])
+  @@index([assigneeUserId])
 }
 
 enum AttendanceDayStatus {

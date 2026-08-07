@@ -38,6 +38,12 @@ export const PERMISSIONS = {
   /** PAYE bands and statutory rates — Super Admin only */
   manageStatutoryRates: ["SUPER_ADMIN"] as UserRole[],
   manageEmployees: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
+  /** Salary / allowance edits on staff records */
+  manageCompensation: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
+  /** Clock machine, shifts, attendance compile */
+  manageAttendance: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
+  /** Company inbox triage, assign, draft replies */
+  manageHrDesk: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
   runPayroll: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
   /** Final payroll sign-off — Super Admin only (HR submits for approval) */
   approvePayroll: ["SUPER_ADMIN"] as UserRole[],
@@ -45,6 +51,8 @@ export const PERMISSIONS = {
   approveChangeRequests: ["SUPER_ADMIN"] as UserRole[],
   viewReports: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE"] as UserRole[],
   viewAuditLog: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE"] as UserRole[],
+  /** Month-range CSV export of the audit log */
+  exportAuditLog: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
   manageLeave: ["SUPER_ADMIN", "HR_ADMIN"] as UserRole[],
   viewPayslips: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE"] as UserRole[],
 };

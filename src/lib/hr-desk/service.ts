@@ -122,7 +122,7 @@ async function notifyHrAdmins(options: {
   const recipients = await prisma.user.findMany({
     where: {
       companyId: options.companyId,
-      role: { in: PERMISSIONS.manageLeave },
+      role: { in: PERMISSIONS.manageHrDesk },
     },
     select: { id: true },
   });
@@ -244,6 +244,7 @@ export async function createHrDecisionDraft(options: {
   messageId: string;
   decision: "approve" | "reject";
   notes?: string;
+  templateId?: import("@/lib/hr-desk/templates").ReplyTemplateId;
   performedById: string;
 }) {
   const message = await prisma.hrDeskMessage.findFirst({
@@ -345,6 +346,9 @@ export async function createHrDecisionDraft(options: {
     staffName: `${message.employee.firstName} ${message.employee.lastName}`,
     originalSubject: message.subject,
     notes: options.notes,
+    templateId:
+      options.templateId ??
+      (options.decision === "approve" ? "standard_approve" : "standard_reject"),
   });
 
   const { gmail } = await getGmailClient(options.companyId);
