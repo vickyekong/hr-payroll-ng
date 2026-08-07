@@ -542,73 +542,61 @@ export function EmployeesAttendanceTab() {
           Upload a CSV, PDF, or Excel export from the biometric clock. OmniPeople
           matches badge IDs to staff (including <code className="text-xs">STAFF-001</code>{" "}
           ↔ device <code className="text-xs">1</code>), scores each day against
-          the default shift, and builds the attendance report below.
+          the default shift, then you can run a <strong>monthly</strong> or{" "}
+          <strong>weekly</strong> attendance report.
         </p>
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div>
-            <Label>Period</Label>
+            <Label>Report month</Label>
             <select
               className="mt-1 flex h-9 rounded-md border border-stone-300 bg-white px-2 text-sm"
-              value={periodMode}
-              onChange={(e) =>
-                setPeriodMode(e.target.value === "week" ? "week" : "month")
-              }
+              value={month}
+              onChange={(e) => {
+                setMonth(Number(e.target.value));
+                setPeriodMode("month");
+              }}
             >
-              <option value="month">Month</option>
-              <option value="week">Week (Mon–Sun)</option>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  {getMonthName(m)}
+                </option>
+              ))}
             </select>
           </div>
-          {periodMode === "month" ? (
-            <>
-              <div>
-                <Label>Report month</Label>
-                <select
-                  className="mt-1 flex h-9 rounded-md border border-stone-300 bg-white px-2 text-sm"
-                  value={month}
-                  onChange={(e) => setMonth(Number(e.target.value))}
-                >
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                    <option key={m} value={m}>
-                      {getMonthName(m)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label>Year</Label>
-                <Input
-                  type="number"
-                  className="mt-1 w-24"
-                  min={2020}
-                  max={new Date().getFullYear() + 1}
-                  value={year}
-                  onChange={(e) =>
-                    setYear(clampReportYear(Number(e.target.value), year))
-                  }
-                />
-              </div>
-            </>
-          ) : (
-            <div>
-              <Label>Week of (any day in the week)</Label>
-              <Input
-                type="date"
-                className="mt-1 w-[11rem]"
-                value={weekOf}
-                min="2020-01-01"
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) return;
-                  const [y, m, d] = v.split("-").map(Number);
-                  setWeekOf(toLocalIso(mondayOf(new Date(y, m - 1, d))));
-                }}
-              />
-              <p className="mt-1 text-[11px] text-stone-500">
-                {formatWeekLabel(weekOf)}
-              </p>
-            </div>
-          )}
+          <div>
+            <Label>Year</Label>
+            <Input
+              type="number"
+              className="mt-1 w-24"
+              min={2020}
+              max={new Date().getFullYear() + 1}
+              value={year}
+              onChange={(e) => {
+                setYear(clampReportYear(Number(e.target.value), year));
+                setPeriodMode("month");
+              }}
+            />
+          </div>
+          <div>
+            <Label>Week of (Mon–Sun)</Label>
+            <Input
+              type="date"
+              className="mt-1 w-[11rem]"
+              value={weekOf}
+              min="2020-01-01"
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!v) return;
+                const [y, m, d] = v.split("-").map(Number);
+                setWeekOf(toLocalIso(mondayOf(new Date(y, m - 1, d))));
+                setPeriodMode("week");
+              }}
+            />
+            <p className="mt-1 text-[11px] text-stone-500">
+              {formatWeekLabel(weekOf)}
+            </p>
+          </div>
           <input
             ref={fileRef}
             type="file"
@@ -630,22 +618,48 @@ export function EmployeesAttendanceTab() {
           </Button>
           <Button
             type="button"
-            variant="outline"
+            variant={periodMode === "month" ? "default" : "outline"}
             disabled={loading}
-            onClick={() => void reanalyse()}
+            onClick={() => {
+              setPeriodMode("month");
+              void (async () => {
+                setLoading(true);
+                setMessage("");
+                setMessageTone("ok");
+                try {
+                  const compileData = await analyseMonth(month, year);
+                  setMessageTone("ok");
+                  setMessage(
+                    `Monthly report ${getMonthName(compileData.month)} ${compileData.year}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.punchesUsed ?? 0} punches used.`
+                  );
+                  setDetailFilter("ABSENT");
+                  await loadReport({
+                    mode: "month",
+                    month: compileData.month,
+                    year: compileData.year,
+                    filter: "ABSENT",
+                  });
+                } catch (err) {
+                  setMessageTone("err");
+                  setMessage(
+                    err instanceof Error ? err.message : "Monthly analysis failed"
+                  );
+                  setLoading(false);
+                  setPhase("");
+                }
+              })();
+            }}
           >
-            {periodMode === "week" ? "Analyse week" : "Analyse month"}
+            Analyse month
           </Button>
-          {periodMode === "month" && (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={loading}
-              onClick={() => void analyseWeekOnly()}
-            >
-              Analyse this week
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant={periodMode === "week" ? "default" : "outline"}
+            disabled={loading}
+            onClick={() => void analyseWeekOnly()}
+          >
+            Analyse week
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -663,6 +677,17 @@ export function EmployeesAttendanceTab() {
             Export daily CSV
           </Button>
         </div>
+
+        <p className="mt-2 text-xs text-stone-500">
+          Viewing:{" "}
+          <span className="font-medium text-stone-700">
+            {periodMode === "week"
+              ? `Week · ${formatWeekLabel(weekOf)}`
+              : `Month · ${getMonthName(month)} ${year}`}
+          </span>
+          . Import always builds the monthly report for the file’s dates; use the
+          buttons above to re-run month or week scoring anytime.
+        </p>
 
         <p className="mt-3 text-xs text-stone-500">
           Matching uses each staff member&apos;s clock machine ID when set, or
