@@ -1,4 +1,10 @@
-import { addDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
+import {
+  addDays,
+  startOfDay,
+  endOfDay,
+  startOfMonth,
+  endOfMonth,
+} from "date-fns";
 import { prisma } from "@/lib/db";
 import { getDailyRateFromMonthly } from "@/lib/payroll/calculate-payroll";
 import {
@@ -10,9 +16,110 @@ import {
   type ParsedPunchRow,
 } from "@/lib/attendance/parse-clock-csv";
 import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
+import { deviceMatchKeys } from "@/lib/attendance/device-match";
 
 function dateKey(d: Date): string {
   return startOfDay(d).toISOString().slice(0, 10);
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}
+
+export { deviceMatchKeys };
+
+async function buildEmployeeDeviceMap(companyId: string) {
+  const employees = await prisma.employee.findMany({
+    where: {
+      companyId,
+      status: { in: ["ACTIVE", "ON_LEAVE", "SICK_LEAVE", "SUSPENDED"] },
+    },
+    select: {
+      id: true,
+      employeeCode: true,
+      clockDeviceId: true,
+    },
+  });
+
+  const byKey = new Map<string, string>();
+  const employeeById = new Map(
+    employees.map((e) => [e.id, e] as const)
+  );
+
+  for (const e of employees) {
+    for (const key of deviceMatchKeys(e.employeeCode)) {
+      if (!byKey.has(key)) byKey.set(key, e.id);
+    }
+    if (e.clockDeviceId) {
+      for (const key of deviceMatchKeys(e.clockDeviceId)) {
+        byKey.set(key, e.id);
+      }
+    }
+  }
+
+  return { byKey, employees, employeeById };
+}
+
+/**
+ * Ensure a default Mon–Fri shift exists and is assigned to every non-exempt
+ * active staff member who does not already have a shift.
+ */
+export async function ensureDefaultShiftCoverage(companyId: string) {
+  let shift = await prisma.shiftTemplate.findFirst({
+    where: { companyId },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!shift) {
+    shift = await prisma.shiftTemplate.create({
+      data: {
+        companyId,
+        name: "Standard day",
+        startTime: "08:00",
+        endTime: "17:00",
+        workDays: "1111100",
+        graceMinutes: 15,
+      },
+    });
+  }
+
+  const employees = await prisma.employee.findMany({
+    where: {
+      companyId,
+      status: { in: ["ACTIVE", "ON_LEAVE", "SICK_LEAVE", "SUSPENDED"] },
+    },
+    select: {
+      id: true,
+      department: true,
+      shiftAssignment: { select: { employeeId: true } },
+    },
+  });
+
+  const needAssign = employees.filter(
+    (e) =>
+      !isShiftAttendanceExempt(e.department) && !e.shiftAssignment
+  );
+
+  for (const chunk of chunkArray(needAssign, 50)) {
+    await prisma.$transaction(
+      chunk.map((e) =>
+        prisma.employeeShiftAssignment.upsert({
+          where: { employeeId: e.id },
+          create: { employeeId: e.id, shiftId: shift!.id },
+          update: {},
+        })
+      )
+    );
+  }
+
+  return {
+    shiftId: shift.id,
+    shiftName: shift.name,
+    assigned: needAssign.length,
+  };
 }
 
 export async function importPunches(options: {
@@ -27,59 +134,125 @@ export async function importPunches(options: {
   const batch = options.importBatch ?? `imp_${Date.now()}`;
   const source = options.source ?? "CSV_IMPORT";
 
-  const employees = await prisma.employee.findMany({
-    where: { companyId: options.companyId, clockDeviceId: { not: null } },
-    select: { id: true, clockDeviceId: true },
-  });
-  const byDevice = new Map(
-    employees
-      .filter((e) => e.clockDeviceId)
-      .map((e) => [e.clockDeviceId!.replace(/^0+/, "") || e.clockDeviceId!, e.id])
+  const { byKey, employeeById } = await buildEmployeeDeviceMap(
+    options.companyId
   );
-  // also map raw ids without stripping
-  for (const e of employees) {
-    if (e.clockDeviceId) byDevice.set(e.clockDeviceId, e.id);
-  }
 
   let imported = 0;
   let mapped = 0;
   let skipped = 0;
+  const autoLinkedDeviceIds: string[] = [];
 
-  for (const row of rows) {
-    const normalizedId = row.deviceUserId.replace(/^0+/, "") || row.deviceUserId;
-    const employeeId =
-      byDevice.get(row.deviceUserId) ?? byDevice.get(normalizedId) ?? null;
+  for (const chunk of chunkArray(rows, 40)) {
+    const ops = chunk.map((row) => {
+      const keys = deviceMatchKeys(row.deviceUserId);
+      let employeeId: string | null = null;
+      for (const key of keys) {
+        const hit = byKey.get(key);
+        if (hit) {
+          employeeId = hit;
+          break;
+        }
+      }
+
+      return { row, employeeId };
+    });
+
+    // Persist newly discovered clock IDs onto staff (best-effort, unique).
+    for (const { row, employeeId } of ops) {
+      if (!employeeId) continue;
+      const emp = employeeById.get(employeeId);
+      if (!emp || emp.clockDeviceId) continue;
+      const deviceId = row.deviceUserId.trim();
+      try {
+        await prisma.employee.update({
+          where: { id: employeeId },
+          data: { clockDeviceId: deviceId },
+        });
+        emp.clockDeviceId = deviceId;
+        for (const key of deviceMatchKeys(deviceId)) {
+          byKey.set(key, employeeId);
+        }
+        autoLinkedDeviceIds.push(`${emp.employeeCode}→${deviceId}`);
+      } catch {
+        // unique clash — leave unset
+      }
+    }
 
     try {
-      await prisma.attendancePunch.upsert({
-        where: {
-          companyId_deviceUserId_punchedAt: {
-            companyId: options.companyId,
-            deviceUserId: row.deviceUserId,
-            punchedAt: row.punchedAt,
-          },
-        },
-        create: {
-          companyId: options.companyId,
-          deviceUserId: row.deviceUserId,
-          employeeId,
-          punchedAt: row.punchedAt,
-          punchType: row.punchType,
-          source,
-          importBatch: batch,
-          rawLine: row.rawLine,
-        },
-        update: {
-          employeeId: employeeId ?? undefined,
-          punchType: row.punchType ?? undefined,
-        },
-      });
-      imported += 1;
-      if (employeeId) mapped += 1;
+      await prisma.$transaction(
+        ops.map(({ row, employeeId }) =>
+          prisma.attendancePunch.upsert({
+            where: {
+              companyId_deviceUserId_punchedAt: {
+                companyId: options.companyId,
+                deviceUserId: row.deviceUserId,
+                punchedAt: row.punchedAt,
+              },
+            },
+            create: {
+              companyId: options.companyId,
+              deviceUserId: row.deviceUserId,
+              employeeId,
+              punchedAt: row.punchedAt,
+              punchType: row.punchType,
+              source,
+              importBatch: batch,
+              rawLine: row.rawLine,
+            },
+            update: {
+              employeeId: employeeId ?? undefined,
+              punchType: row.punchType ?? undefined,
+            },
+          })
+        )
+      );
+      imported += ops.length;
+      mapped += ops.filter((o) => o.employeeId).length;
     } catch {
-      skipped += 1;
+      // Fall back one-by-one for this chunk
+      for (const { row, employeeId } of ops) {
+        try {
+          await prisma.attendancePunch.upsert({
+            where: {
+              companyId_deviceUserId_punchedAt: {
+                companyId: options.companyId,
+                deviceUserId: row.deviceUserId,
+                punchedAt: row.punchedAt,
+              },
+            },
+            create: {
+              companyId: options.companyId,
+              deviceUserId: row.deviceUserId,
+              employeeId,
+              punchedAt: row.punchedAt,
+              punchType: row.punchType,
+              source,
+              importBatch: batch,
+              rawLine: row.rawLine,
+            },
+            update: {
+              employeeId: employeeId ?? undefined,
+              punchType: row.punchType ?? undefined,
+            },
+          });
+          imported += 1;
+          if (employeeId) mapped += 1;
+        } catch {
+          skipped += 1;
+        }
+      }
     }
   }
+
+  const punchDates = rows.map((r) => r.punchedAt.getTime()).filter(Boolean);
+  const periodHint =
+    punchDates.length > 0
+      ? {
+          month: new Date(Math.min(...punchDates)).getMonth() + 1,
+          year: new Date(Math.min(...punchDates)).getFullYear(),
+        }
+      : null;
 
   return {
     batch,
@@ -90,6 +263,8 @@ export async function importPunches(options: {
     skipped,
     parseErrors: errors.slice(0, 20),
     source,
+    autoLinkedDeviceIds: autoLinkedDeviceIds.slice(0, 30),
+    periodHint,
   };
 }
 
@@ -113,6 +288,8 @@ export async function compileAttendancePeriod(options: {
   periodMonth: number;
   periodYear: number;
 }) {
+  await ensureDefaultShiftCoverage(options.companyId);
+
   const periodStart = startOfMonth(
     new Date(options.periodYear, options.periodMonth - 1, 1)
   );
@@ -167,19 +344,35 @@ export async function compileAttendancePeriod(options: {
     leaveByEmployee.set(l.employeeId, list);
   }
 
-  let upserted = 0;
+  const regulated = employees.filter(
+    (e) => !isShiftAttendanceExempt(e.department) && e.shiftAssignment?.shift
+  );
+  const exemptIds = employees
+    .filter((e) => isShiftAttendanceExempt(e.department))
+    .map((e) => e.id);
+
+  type DayRecord = {
+    companyId: string;
+    employeeId: string;
+    workDate: Date;
+    shiftId: string;
+    status: "PRESENT" | "LATE" | "PARTIAL" | "ABSENT" | "ON_LEAVE" | "OFF";
+    clockInAt: Date | null;
+    clockOutAt: Date | null;
+    workedMinutes: number;
+    lateMinutes: number;
+    expectedMinutes: number;
+    penaltyKobo: bigint;
+    compiledAt: Date;
+  };
+
+  const records: DayRecord[] = [];
   let absentCount = 0;
   let penaltyTotalKobo = 0n;
+  const now = new Date();
 
-  for (const employee of employees) {
-    // Management is not shift-regulated — skip compile and clear any prior day scores.
-    if (isShiftAttendanceExempt(employee.department)) {
-      continue;
-    }
-
-    const shift = employee.shiftAssignment?.shift;
-    if (!shift) continue;
-
+  for (const employee of regulated) {
+    const shift = employee.shiftAssignment!.shift;
     const empPunches = punchesByEmployee.get(employee.id) ?? [];
     const leaves = leaveByEmployee.get(employee.id) ?? [];
 
@@ -206,8 +399,7 @@ export async function compileAttendancePeriod(options: {
       if (dayPunches.length > 0) {
         const ins = dayPunches.filter((p) => p.punchType === "IN");
         const outs = dayPunches.filter((p) => p.punchType === "OUT");
-        clockInAt =
-          (ins[0] ?? dayPunches[0])?.punchedAt ?? null;
+        clockInAt = (ins[0] ?? dayPunches[0])?.punchedAt ?? null;
         clockOutAt =
           (outs[outs.length - 1] ?? dayPunches[dayPunches.length - 1])
             ?.punchedAt ?? null;
@@ -220,7 +412,10 @@ export async function compileAttendancePeriod(options: {
       }
 
       const shiftStart = combineDateAndTime(day, shift.startTime);
-      const expectedMinutes = shiftDurationMinutes(shift.startTime, shift.endTime);
+      const expectedMinutes = shiftDurationMinutes(
+        shift.startTime,
+        shift.endTime
+      );
       const grace = shift.graceMinutes || settings.lateGraceMinutes;
 
       const compiled = compileAttendanceStatus({
@@ -228,7 +423,9 @@ export async function compileAttendancePeriod(options: {
         onLeave,
         clockInAt,
         clockOutAt:
-          clockOutAt && clockInAt && clockOutAt > clockInAt ? clockOutAt : null,
+          clockOutAt && clockInAt && clockOutAt > clockInAt
+            ? clockOutAt
+            : null,
         shiftStart,
         graceMinutes: grace,
         minPresentMinutes: settings.minPresentMinutes,
@@ -246,53 +443,46 @@ export async function compileAttendancePeriod(options: {
         penaltyTotalKobo += penaltyKobo;
       }
 
-      await prisma.attendanceDay.upsert({
-        where: {
-          employeeId_workDate: {
-            employeeId: employee.id,
-            workDate: dayStart,
-          },
-        },
-        create: {
-          companyId: options.companyId,
-          employeeId: employee.id,
-          workDate: dayStart,
-          shiftId: shift.id,
-          status: compiled.status,
-          clockInAt,
-          clockOutAt:
-            clockOutAt && clockInAt && clockOutAt > clockInAt
-              ? clockOutAt
-              : null,
-          workedMinutes: compiled.workedMinutes,
-          lateMinutes: compiled.lateMinutes,
-          expectedMinutes,
-          penaltyKobo,
-          compiledAt: new Date(),
-        },
-        update: {
-          shiftId: shift.id,
-          status: compiled.status,
-          clockInAt,
-          clockOutAt:
-            clockOutAt && clockInAt && clockOutAt > clockInAt
-              ? clockOutAt
-              : null,
-          workedMinutes: compiled.workedMinutes,
-          lateMinutes: compiled.lateMinutes,
-          expectedMinutes,
-          penaltyKobo,
-          compiledAt: new Date(),
-        },
+      // Skip quiet OFF days with no punches to keep writes small
+      if (compiled.status === "OFF" && dayPunches.length === 0) {
+        continue;
+      }
+
+      records.push({
+        companyId: options.companyId,
+        employeeId: employee.id,
+        workDate: dayStart,
+        shiftId: shift.id,
+        status: compiled.status,
+        clockInAt,
+        clockOutAt:
+          clockOutAt && clockInAt && clockOutAt > clockInAt
+            ? clockOutAt
+            : null,
+        workedMinutes: compiled.workedMinutes,
+        lateMinutes: compiled.lateMinutes,
+        expectedMinutes,
+        penaltyKobo,
+        compiledAt: now,
       });
-      upserted += 1;
     }
   }
 
-  // Drop shift scores / assignments for Management (not shift-regulated).
-  const exemptIds = employees
-    .filter((e) => isShiftAttendanceExempt(e.department))
-    .map((e) => e.id);
+  const regulatedIds = regulated.map((e) => e.id);
+  if (regulatedIds.length > 0) {
+    await prisma.attendanceDay.deleteMany({
+      where: {
+        companyId: options.companyId,
+        employeeId: { in: regulatedIds },
+        workDate: { gte: periodStart, lte: periodEnd },
+      },
+    });
+  }
+
+  for (const chunk of chunkArray(records, 250)) {
+    await prisma.attendanceDay.createMany({ data: chunk });
+  }
+
   if (exemptIds.length > 0) {
     await prisma.attendanceDay.deleteMany({
       where: {
@@ -307,9 +497,11 @@ export async function compileAttendancePeriod(options: {
   }
 
   return {
-    daysCompiled: upserted,
+    daysCompiled: records.length,
+    staffCompiled: regulated.length,
     absentCount,
     penaltyTotalKobo: penaltyTotalKobo.toString(),
+    punchesUsed: punches.length,
     period: {
       month: options.periodMonth,
       year: options.periodYear,
@@ -361,7 +553,6 @@ export async function applyAttendancePenaltiesToPayroll(options: {
     (day) => !isShiftAttendanceExempt(day.employee.department)
   );
 
-  // Remove previous auto attendance penalties for this run
   await prisma.payrollAdjustment.deleteMany({
     where: {
       payrollRunId: run.id,

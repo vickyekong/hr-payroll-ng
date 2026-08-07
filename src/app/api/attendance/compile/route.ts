@@ -4,6 +4,9 @@ import { compileAttendancePeriod } from "@/lib/attendance/service";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 const bodySchema = z.object({
   month: z.number().min(1).max(12),
   year: z.number().min(2020),

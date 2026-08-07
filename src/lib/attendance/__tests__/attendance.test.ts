@@ -7,6 +7,19 @@ import {
 } from "@/lib/attendance/parse-clock-csv";
 import { parseTimecardText } from "@/lib/attendance/parse-timecard-text";
 import { isShiftAttendanceExempt } from "@/lib/attendance/penalty-exempt";
+import { deviceMatchKeys } from "@/lib/attendance/device-match";
+
+describe("deviceMatchKeys", () => {
+  it("links STAFF codes to bare device numbers", () => {
+    const keys = deviceMatchKeys("STAFF-042");
+    expect(keys).toEqual(
+      expect.arrayContaining(["STAFF-042", "42", "042", "STAFF-42"])
+    );
+    expect(deviceMatchKeys("1")).toEqual(
+      expect.arrayContaining(["1", "STAFF-001"])
+    );
+  });
+});
 
 describe("isShiftAttendanceExempt", () => {
   it("exempts Management department (any casing)", () => {

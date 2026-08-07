@@ -10,6 +10,7 @@ import { parseTimecardText } from "@/lib/attendance/parse-timecard-text";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function extensionOf(name: string): string {
   const i = name.lastIndexOf(".");

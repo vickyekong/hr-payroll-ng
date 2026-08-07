@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,12 +74,30 @@ function statusVariant(
   }
 }
 
+function downloadCsv(filename: string, headers: string[], rows: string[][]) {
+  const escape = (v: string) =>
+    /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  const csv = [headers, ...rows]
+    .map((row) => row.map(escape).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function EmployeesAttendanceTab() {
   const now = new Date();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState("");
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"ok" | "err">("ok");
   const [summary, setSummary] = useState({
     present: 0,
     late: 0,
@@ -103,60 +121,72 @@ export function EmployeesAttendanceTab() {
   const [shiftStart, setShiftStart] = useState("08:00");
   const [shiftEnd, setShiftEnd] = useState("17:00");
 
-  const loadReport = useCallback(async () => {
-    setLoading(true);
-    const qs = new URLSearchParams({
-      month: String(month),
-      year: String(year),
-      ...(detailFilter ? { status: detailFilter } : {}),
-    });
-    const res = await fetch(`/api/attendance?${qs}`);
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setMessage(data.error ?? "Failed to load attendance");
-      return;
-    }
-    setSummary(data.summary ?? summary);
-    setCharts(
-      data.charts ?? {
-        byStatus: [],
-        byStaffOutcome: [],
-        byDepartmentAbsent: [],
+  const loadReport = useCallback(
+    async (m = month, y = year, filter = detailFilter) => {
+      setLoading(true);
+      setPhase("Loading report…");
+      const qs = new URLSearchParams({
+        month: String(m),
+        year: String(y),
+        ...(filter ? { status: filter } : {}),
+      });
+      const res = await fetch(`/api/attendance?${qs}`);
+      const data = await res.json();
+      setLoading(false);
+      setPhase("");
+      if (!res.ok) {
+        setMessageTone("err");
+        setMessage(data.error ?? "Failed to load attendance");
+        return;
       }
-    );
-    setStaffSummary(data.staffSummary ?? []);
-    setDays(data.days ?? []);
-    setUnmappedPunches(data.unmappedPunches ?? 0);
-    setEmployeesMissingDevice(data.employeesMissingDevice ?? 0);
-    setShiftsCount(data.shifts?.length ?? 0);
-  }, [month, year, detailFilter]);
+      setSummary(data.summary ?? summary);
+      setCharts(
+        data.charts ?? {
+          byStatus: [],
+          byStaffOutcome: [],
+          byDepartmentAbsent: [],
+        }
+      );
+      setStaffSummary(data.staffSummary ?? []);
+      setDays(data.days ?? []);
+      setUnmappedPunches(data.unmappedPunches ?? 0);
+      setEmployeesMissingDevice(data.employeesMissingDevice ?? 0);
+      setShiftsCount(data.shifts?.length ?? 0);
+    },
+    [month, year, detailFilter]
+  );
 
   useEffect(() => {
     void loadReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month, year, detailFilter]);
 
-  async function ensureDefaultShift() {
-    if (shiftsCount > 0) return;
-    await fetch("/api/attendance/shifts", {
+  async function analyseMonth(m: number, y: number) {
+    setPhase("Analysing punches into daily attendance…");
+    const compileRes = await fetch("/api/attendance/compile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: shiftName || "Standard day",
-        startTime: shiftStart,
-        endTime: shiftEnd,
-        workDays: "1111100",
-      }),
+      body: JSON.stringify({ month: m, year: y }),
     });
+    const compileData = await compileRes.json();
+    if (!compileRes.ok) {
+      throw new Error(compileData.error ?? "Analysis failed");
+    }
+    return compileData as {
+      daysCompiled: number;
+      staffCompiled?: number;
+      absentCount: number;
+      punchesUsed?: number;
+      penaltyTotalKobo: string;
+    };
   }
 
   async function uploadAndAnalyse(file: File) {
     setLoading(true);
     setMessage("");
+    setMessageTone("ok");
     try {
-      await ensureDefaultShift();
-
+      setPhase("Importing clock punches from file…");
       const form = new FormData();
       form.append("file", file);
       const importRes = await fetch("/api/attendance/import", {
@@ -165,26 +195,59 @@ export function EmployeesAttendanceTab() {
       });
       const importData = await importRes.json();
       if (!importRes.ok) {
-        throw new Error(importData.error ?? "Import failed");
+        throw new Error(
+          importData.error ??
+            (importData.parseErrors?.length
+              ? importData.parseErrors.join("; ")
+              : "Import failed")
+        );
       }
 
-      const compileRes = await fetch("/api/attendance/compile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month, year }),
-      });
-      const compileData = await compileRes.json();
-      if (!compileRes.ok) {
-        throw new Error(compileData.error ?? "Analysis failed");
+      const targetMonth = importData.periodHint?.month ?? month;
+      const targetYear = importData.periodHint?.year ?? year;
+      if (targetMonth !== month || targetYear !== year) {
+        setMonth(targetMonth);
+        setYear(targetYear);
       }
 
+      const compileData = await analyseMonth(targetMonth, targetYear);
+
+      const linked =
+        importData.autoLinkedDeviceIds?.length > 0
+          ? ` Auto-linked ${importData.autoLinkedDeviceIds.length} clock IDs to staff codes.`
+          : "";
+
+      setMessageTone("ok");
       setMessage(
-        `Imported ${importData.imported} punches (${importData.mapped} matched to staff). Analysed ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts.`
+        `Imported ${importData.imported} punches (${importData.mapped} matched, ${importData.unmapped} unmatched). ` +
+          `Report for ${getMonthName(targetMonth)} ${targetYear}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.staffCompiled ?? "—"} staff scored.${linked}`
+      );
+      setDetailFilter("ABSENT");
+      await loadReport(targetMonth, targetYear, "ABSENT");
+    } catch (err) {
+      setMessageTone("err");
+      setMessage(err instanceof Error ? err.message : "Upload failed");
+      setLoading(false);
+      setPhase("");
+    }
+  }
+
+  async function reanalyse() {
+    setLoading(true);
+    setMessage("");
+    setMessageTone("ok");
+    try {
+      const compileData = await analyseMonth(month, year);
+      setMessageTone("ok");
+      setMessage(
+        `Re-analysed ${getMonthName(month)} ${year}: ${compileData.daysCompiled} day records · ${compileData.absentCount} missed shifts · ${compileData.punchesUsed ?? 0} punches used.`
       );
       await loadReport();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Upload failed");
+      setMessageTone("err");
+      setMessage(err instanceof Error ? err.message : "Analyse failed");
       setLoading(false);
+      setPhase("");
     }
   }
 
@@ -204,29 +267,95 @@ export function EmployeesAttendanceTab() {
     const data = await res.json();
     setLoading(false);
     if (!res.ok) {
+      setMessageTone("err");
       setMessage(data.error ?? "Could not create shift");
       return;
     }
-    setMessage(`Shift “${data.name}” created. Assign it on each employee’s edit page.`);
+    setMessageTone("ok");
+    setMessage(
+      `Shift “${data.name}” created. Upload a clock file or click Analyse month — staff without a shift are assigned automatically.`
+    );
     await loadReport();
+  }
+
+  function exportStaffReport() {
+    downloadCsv(
+      `attendance-staff-${year}-${String(month).padStart(2, "0")}.csv`,
+      [
+        "employee_code",
+        "name",
+        "department",
+        "clock_device_id",
+        "present",
+        "late",
+        "partial",
+        "absent",
+        "on_leave",
+        "scheduled_days",
+        "attendance_rate_pct",
+        "penalty_naira",
+      ],
+      staffSummary.map((r) => [
+        r.employeeCode,
+        r.name,
+        r.department,
+        r.clockDeviceId ?? "",
+        String(r.present),
+        String(r.late),
+        String(r.partial),
+        String(r.absent),
+        String(r.onLeave),
+        String(r.scheduledDays),
+        r.attendanceRate == null ? "" : String(r.attendanceRate),
+        (Number(r.penaltyKobo || "0") / 100).toFixed(2),
+      ])
+    );
+  }
+
+  function exportDailyReport() {
+    downloadCsv(
+      `attendance-daily-${year}-${String(month).padStart(2, "0")}.csv`,
+      [
+        "date",
+        "employee_code",
+        "name",
+        "department",
+        "status",
+        "clock_in",
+        "clock_out",
+        "late_minutes",
+        "penalty_naira",
+      ],
+      days.map((d) => [
+        d.workDate.slice(0, 10),
+        d.employee.employeeCode,
+        `${d.employee.firstName} ${d.employee.lastName}`,
+        d.employee.department,
+        d.status,
+        d.clockInAt ? new Date(d.clockInAt).toISOString() : "",
+        d.clockOutAt ? new Date(d.clockOutAt).toISOString() : "",
+        String(d.lateMinutes),
+        (Number(d.penaltyKobo || "0") / 100).toFixed(2),
+      ])
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-stone-200 bg-white p-5">
         <h2 className="text-lg font-semibold text-stone-900">
-          Clock machine attendance
+          Clock machine · import & report
         </h2>
         <p className="mt-1 text-sm text-stone-500">
-          Upload a CSV, PDF, or Excel export from your biometric / clock-in
-          machine (including Time Card reports). The system matches each badge
-          ID to staff, compiles shifts for the month, and builds the attendance
-          report below.
+          Upload a CSV, PDF, or Excel export from the biometric clock. OmniPeople
+          matches badge IDs to staff (including <code className="text-xs">STAFF-001</code>{" "}
+          ↔ device <code className="text-xs">1</code>), scores each day against
+          the default shift, and builds the attendance report below.
         </p>
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div>
-            <Label>Month</Label>
+            <Label>Report month</Label>
             <select
               className="mt-1 flex h-9 rounded-md border border-stone-300 bg-white px-2 text-sm"
               value={month}
@@ -248,39 +377,59 @@ export function EmployeesAttendanceTab() {
               onChange={(e) => setYear(Number(e.target.value))}
             />
           </div>
-          <div className="min-w-[14rem] flex-1">
-            <Label htmlFor="clockFile">Machine export (CSV, PDF, Excel)</Label>
-            <Input
-              id="clockFile"
-              type="file"
-              accept=".csv,.txt,.tsv,.pdf,.xlsx,.xls,text/csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="mt-1"
-              disabled={loading}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void uploadAndAnalyse(file);
-                e.target.value = "";
-              }}
-            />
-          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,.txt,.tsv,.pdf,.xlsx,.xls,text/csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="hidden"
+            disabled={loading}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void uploadAndAnalyse(file);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            type="button"
+            disabled={loading}
+            onClick={() => fileRef.current?.click()}
+          >
+            {loading ? phase || "Working…" : "Import file & analyse"}
+          </Button>
           <Button
             type="button"
             variant="outline"
             disabled={loading}
-            onClick={() => void loadReport()}
+            onClick={() => void reanalyse()}
           >
-            Refresh report
+            Analyse month
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={loading || staffSummary.length === 0}
+            onClick={exportStaffReport}
+          >
+            Export staff CSV
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={loading || days.length === 0}
+            onClick={exportDailyReport}
+          >
+            Export daily CSV
           </Button>
         </div>
 
         <p className="mt-3 text-xs text-stone-500">
-          Tip: set each staff member&apos;s <strong>Clock machine ID</strong> and{" "}
-          <strong>Shift</strong> on Edit employee.{" "}
+          Matching uses each staff member&apos;s clock machine ID when set, or
+          the number in their staff code.{" "}
           {employeesMissingDevice > 0 && (
-            <>{employeesMissingDevice} active staff still missing a machine ID. </>
+            <>{employeesMissingDevice} active staff have no saved clock ID yet (auto-link runs on import). </>
           )}
           {unmappedPunches > 0 && (
-            <>{unmappedPunches} punches this month could not be matched. </>
+            <>{unmappedPunches} punches this month are still unmatched. </>
           )}
         </p>
 
@@ -290,7 +439,8 @@ export function EmployeesAttendanceTab() {
             className="mt-4 grid gap-2 rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 sm:grid-cols-4"
           >
             <div className="sm:col-span-4 text-sm text-stone-600">
-              No shift defined yet — create one (Mon–Fri) before or while uploading:
+              Optional: create a named shift. If none exists, import creates
+              “Standard day” (08:00–17:00, Mon–Fri) automatically.
             </div>
             <Input
               value={shiftName}
@@ -314,9 +464,18 @@ export function EmployeesAttendanceTab() {
         )}
 
         {message && (
-          <p className="mt-3 rounded-md bg-stone-50 px-3 py-2 text-sm text-stone-700">
+          <p
+            className={`mt-3 rounded-md px-3 py-2 text-sm ${
+              messageTone === "err"
+                ? "bg-red-50 text-red-800"
+                : "bg-emerald-50 text-emerald-900"
+            }`}
+          >
             {message}
           </p>
+        )}
+        {loading && phase && (
+          <p className="mt-2 text-sm text-stone-500">{phase}</p>
         )}
       </div>
 
@@ -351,8 +510,8 @@ export function EmployeesAttendanceTab() {
               {formatCurrency(BigInt(summary.penaltyKobo || "0"))}
             </p>
             <p className="mt-1 text-xs text-stone-400">
-              Management staff are not shift-regulated (no late/absent scoring or
-              penalties). Re-analyse after deploy to clear older Management rows.
+              Management departments are not shift-regulated (no late/absent
+              scoring).
             </p>
           </div>
         </div>
@@ -405,7 +564,9 @@ export function EmployeesAttendanceTab() {
                     {row.onLeave}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {row.attendanceRate == null ? "—" : `${row.attendanceRate}%`}
+                    {row.attendanceRate == null
+                      ? "—"
+                      : `${row.attendanceRate}%`}
                   </TableCell>
                   <TableCell className="text-right">
                     <TableCurrency value={BigInt(row.penaltyKobo || "0")} />
@@ -416,8 +577,8 @@ export function EmployeesAttendanceTab() {
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-stone-500">
                     {loading
-                      ? "Analysing…"
-                      : "Upload a clock-machine CSV to generate the staff attendance report."}
+                      ? "Working…"
+                      : "Import a clock-machine file to generate the staff attendance report."}
                   </TableCell>
                 </TableRow>
               )}
