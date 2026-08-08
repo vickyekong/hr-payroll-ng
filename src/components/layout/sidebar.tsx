@@ -179,7 +179,7 @@ function NavPanel({
           {role ? portalLabel(role) : ""} · {session?.user?.email}
         </p>
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => signOut({ callbackUrl: "/" })}
           className="mt-3 text-xs text-lagoon-mist/55 transition hover:text-foam"
         >
           Sign out
