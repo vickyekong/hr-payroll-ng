@@ -16,5 +16,6 @@ export const config = {
     "/hr-ask/:path*",
     "/my/:path*",
     "/settings/:path*",
+    "/onboarding/:path*",
   ],
 };

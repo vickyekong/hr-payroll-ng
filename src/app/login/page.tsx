@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -107,7 +108,13 @@ export default function LoginPage() {
               </Button>
             </div>
           </form>
-          <p className="mt-4 text-center text-xs text-lagoon-mist/50">
+          <p className="mt-4 text-center text-xs text-lagoon-mist/60">
+            New company?{" "}
+            <Link href="/signup" className="underline underline-offset-2">
+              Create a workspace
+            </Link>
+          </p>
+          <p className="mt-2 text-center text-xs text-lagoon-mist/50">
             Demo · admin@acme.ng · hr@acme.ng · password123
           </p>
         </div>

@@ -6,6 +6,7 @@ import { can } from "@/lib/permissions";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { BrandingSettingsForm } from "@/components/settings/branding-settings-form";
 import { GoogleDriveSettings } from "@/components/settings/google-drive-settings";
+import { TeamInviteForm } from "@/components/settings/team-invite-form";
 import { Suspense } from "react";
 
 export default async function SettingsPage() {
@@ -15,6 +16,7 @@ export default async function SettingsPage() {
   }
 
   const canEditStatutory = can(session.user.role, "manageStatutoryRates");
+  const isSuperAdmin = session.user.role === "SUPER_ADMIN";
 
   return (
     <AppShell>
@@ -22,11 +24,12 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold text-ink">Settings</h1>
         <p className="mt-1 text-sm text-muted">
           {canEditStatutory
-            ? "Company branding, statutory rates, and Google Workspace sync"
+            ? "Company branding, team, statutory rates, and Google Workspace sync"
             : "Company branding and Google Workspace sync — statutory rates are Super Admin only"}
         </p>
       </div>
       <BrandingSettingsForm />
+      {isSuperAdmin && <TeamInviteForm />}
       {canEditStatutory && <SettingsForm />}
       <Suspense fallback={null}>
         <GoogleDriveSettings />
