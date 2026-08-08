@@ -3,6 +3,7 @@ import {
   PRODUCT_POSITIONING,
   PRODUCT_TAGLINE,
 } from "@/lib/brand";
+import { LandingLottie } from "@/components/marketing/landing-lottie";
 
 /** Hard <a> navigations so Sign up never soft-routes into the login shell by mistake. */
 function CtaLink({
@@ -35,16 +36,19 @@ const PILLARS = [
     label: "01",
     title: "Salary truth engine",
     body: "Contract pay, attendance, unpaid leave, taxable and non-taxable adjustments, and statutory deductions resolve into one explainable net. HR sees the story before anyone approves the run.",
+    lottie: "/lottie/salary-truth.json",
   },
   {
     label: "02",
     title: "Remittance-ready packs",
     body: "Month-end PAYE, pension, NHF, and NSITF totals come from the same rules that built the payslips — so filing matches payroll, not a second spreadsheet.",
+    lottie: "/lottie/remittance-pack.json",
   },
   {
     label: "03",
     title: "Nigeria-native by default",
     body: "NTA 2025 bands, pension, NHF, and NSITF ship configured. Clock files and L'ORI attendance feed pay only after HR confirms. Admin and Finance stay pay-exempt where your policy says so.",
+    lottie: "/lottie/people-network.json",
   },
 ] as const;
 
@@ -53,21 +57,25 @@ const FLOW = [
     step: "1",
     title: "Bring people in",
     body: "Onboard staff with compensation, bank details, and statutory IDs — or import from the sheets and clocks you already use.",
+    lottie: "/lottie/hr-team.json",
   },
   {
     step: "2",
     title: "Confirm attendance",
     body: "Missed shifts and unpaid leave become pay impact only after HR clearance. Penalties stay opt-in, never silent.",
+    lottie: "/lottie/attendance-confirm.json",
   },
   {
     step: "3",
     title: "Run payroll",
     body: "Draft → review → approve → paid. Recalculate with YTD and statutory snapshots. Payslips stay explainable end to end.",
+    lottie: "/lottie/money-cycle.json",
   },
   {
     step: "4",
     title: "File & export",
     body: "Remittance packs, department cost, CSV exports, and optional Google Workspace sync — without rebuilding the numbers.",
+    lottie: "/lottie/approval.json",
   },
 ] as const;
 
@@ -128,7 +136,7 @@ export function LandingPage() {
         </nav>
       </header>
 
-      {/* Hero — one composition: brand, promise, CTA, salary-truth plane */}
+      {/* Hero — brand + salary truth with living Lottie field */}
       <section className="relative isolate overflow-hidden">
         <div
           aria-hidden
@@ -145,6 +153,12 @@ export function LandingPage() {
         <div
           aria-hidden
           className="animate-lagoon-breathe pointer-events-none absolute -right-24 top-1/4 h-[420px] w-[420px] rounded-full bg-lagoon/20 blur-3xl"
+        />
+        {/* Ambient Lottie wash — creative depth behind hero copy */}
+        <LandingLottie
+          src="/lottie/salary-truth.json"
+          className="pointer-events-none absolute -right-8 top-8 h-[520px] w-[520px] opacity-40 sm:opacity-50 lg:right-0 lg:top-1/2 lg:h-[640px] lg:w-[640px] lg:-translate-y-1/2 lg:opacity-60"
+          speed={0.85}
         />
 
         <div className="relative z-10 mx-auto grid min-h-[calc(100dvh-4.5rem)] max-w-6xl items-center gap-12 px-5 pb-20 pt-8 sm:px-8 sm:pb-24 lg:grid-cols-12 lg:gap-10 lg:px-12 lg:pb-28">
@@ -172,68 +186,82 @@ export function LandingPage() {
             </p>
           </div>
 
-          {/* Dominant visual — typographic salary truth in the atmosphere */}
           <div
             className="animate-fade-up relative lg:col-span-6 xl:col-span-5"
             style={{ animationDelay: "140ms" }}
-            aria-hidden
           >
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-lagoon-mist/55">
-              This month · explained
-            </p>
-            <p className="font-display mt-5 text-5xl font-semibold tracking-tight text-foam sm:text-6xl">
-              ₦669,420
-            </p>
-            <p className="mt-3 max-w-sm text-sm text-lagoon-mist/65 sm:text-base">
-              Take-home after truth — contract, attendance, and remittances in
-              one line of sight
-            </p>
+            <div className="relative">
+              <LandingLottie
+                src="/lottie/command-center.json"
+                className="mx-auto mb-2 h-40 w-40 sm:h-48 sm:w-48 lg:absolute lg:-right-4 lg:-top-28 lg:mb-0 lg:h-56 lg:w-56 lg:opacity-90"
+                speed={0.9}
+              />
+              <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-lagoon-mist/55">
+                This month · explained
+              </p>
+              <p className="font-display mt-5 text-5xl font-semibold tracking-tight text-foam sm:text-6xl">
+                ₦669,420
+              </p>
+              <p className="mt-3 max-w-sm text-sm text-lagoon-mist/65 sm:text-base">
+                Take-home after truth — contract, attendance, and remittances in
+                one line of sight
+              </p>
 
-            <dl className="mt-10 max-w-md space-y-0 border-t border-white/15">
-              {[
-                { label: "Gross contract", value: "₦850,000" },
-                {
-                  label: "Statutory (PAYE · pension · NHF)",
-                  value: "−₦142,400",
-                },
-                { label: "Attendance confirmed by HR", value: "−₦38,180" },
-                { label: "Net on the slip", value: "₦669,420", emph: true },
-              ].map((row, i) => (
-                <div
-                  key={row.label}
-                  className={`animate-fade-up flex items-baseline justify-between gap-4 border-b border-white/10 py-3.5 text-sm ${
-                    row.emph ? "text-base" : "text-lagoon-mist/70"
-                  }`}
-                  style={{ animationDelay: `${220 + i * 70}ms` }}
-                >
-                  <dt className={row.emph ? "font-medium text-foam" : undefined}>
-                    {row.label}
-                  </dt>
-                  <dd
-                    className={`tabular-nums ${
-                      row.emph
-                        ? "font-semibold text-lagoon-mist"
-                        : "font-medium text-foam"
+              <dl className="mt-10 max-w-md space-y-0 border-t border-white/15" aria-hidden>
+                {[
+                  { label: "Gross contract", value: "₦850,000" },
+                  {
+                    label: "Statutory (PAYE · pension · NHF)",
+                    value: "−₦142,400",
+                  },
+                  { label: "Attendance confirmed by HR", value: "−₦38,180" },
+                  { label: "Net on the slip", value: "₦669,420", emph: true },
+                ].map((row, i) => (
+                  <div
+                    key={row.label}
+                    className={`animate-fade-up flex items-baseline justify-between gap-4 border-b border-white/10 py-3.5 text-sm ${
+                      row.emph ? "text-base" : "text-lagoon-mist/70"
                     }`}
+                    style={{ animationDelay: `${220 + i * 70}ms` }}
                   >
-                    {row.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+                    <dt className={row.emph ? "font-medium text-foam" : undefined}>
+                      {row.label}
+                    </dt>
+                    <dd
+                      className={`tabular-nums ${
+                        row.emph
+                          ? "font-semibold text-lagoon-mist"
+                          : "font-medium text-foam"
+                      }`}
+                    >
+                      {row.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Tagline bridge */}
-      <section className="border-y border-white/10 bg-ink-soft/60 px-5 py-10 sm:px-8 lg:px-12">
-        <p className="mx-auto max-w-3xl text-center text-lg leading-relaxed text-lagoon-mist/85 sm:text-xl">
+      <section className="relative overflow-hidden border-y border-white/10 bg-ink-soft/60 px-5 py-12 sm:px-8 lg:px-12">
+        <LandingLottie
+          src="/lottie/flow-spark.json"
+          className="pointer-events-none absolute left-4 top-1/2 h-24 w-24 -translate-y-1/2 opacity-50 sm:left-10 sm:h-28 sm:w-28"
+          speed={1.1}
+        />
+        <LandingLottie
+          src="/lottie/flow-spark.json"
+          className="pointer-events-none absolute right-4 top-1/2 h-24 w-24 -translate-y-1/2 opacity-50 sm:right-10 sm:h-28 sm:w-28"
+          speed={0.95}
+        />
+        <p className="relative z-10 mx-auto max-w-3xl text-center text-lg leading-relaxed text-lagoon-mist/85 sm:text-xl">
           {PRODUCT_TAGLINE} — built so Nigerian HR teams stop reconciling three
           tools the night before payday.
         </p>
       </section>
 
-      {/* Pillars */}
+      {/* Pillars with Lottie icons */}
       <section className="bg-mist px-5 py-20 text-ink sm:px-8 sm:py-24 lg:px-12">
         <div className="mx-auto max-w-6xl">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon">
@@ -255,6 +283,11 @@ export function LandingPage() {
                 className="animate-fade-up"
                 style={{ animationDelay: `${i * 80}ms` }}
               >
+                <LandingLottie
+                  src={pillar.lottie}
+                  className="mb-4 h-28 w-28 sm:h-32 sm:w-32"
+                  speed={0.9 + i * 0.05}
+                />
                 <p className="font-display text-sm font-medium text-lagoon">
                   {pillar.label}
                 </p>
@@ -270,7 +303,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* How it works */}
+      {/* How it works — Lottie stage per step */}
       <section className="border-t border-line bg-foam px-5 py-20 text-ink sm:px-8 sm:py-24 lg:px-12">
         <div className="mx-auto max-w-6xl">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon">
@@ -285,36 +318,47 @@ export function LandingPage() {
             truth.
           </p>
 
-          <ol className="mt-14 grid gap-0 sm:grid-cols-2 lg:grid-cols-4">
-            {FLOW.map((item, i) => (
-              <li
-                key={item.step}
-                className="relative border-t border-line py-8 pr-6 sm:border-t-0 sm:border-l sm:pl-6 sm:pr-4 first:sm:border-l-0 first:sm:pl-0"
-              >
+          <ol className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            {FLOW.map((item) => (
+              <li key={item.step} className="relative">
+                <div className="mb-4 flex h-36 items-center justify-center overflow-hidden rounded-xl bg-atmosphere sm:h-40">
+                  <LandingLottie
+                    src={item.lottie}
+                    className="h-32 w-32 sm:h-36 sm:w-36"
+                    tone={
+                      item.lottie.includes("money-cycle") ||
+                      item.lottie.includes("hr-team") ||
+                      item.lottie.includes("approval")
+                        ? "mist"
+                        : "default"
+                    }
+                    speed={0.85}
+                  />
+                </div>
                 <span className="font-display text-3xl font-semibold text-lagoon/35">
                   {item.step}
                 </span>
-                <h3 className="mt-3 text-base font-semibold text-ink">
+                <h3 className="mt-2 text-base font-semibold text-ink">
                   {item.title}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted">
                   {item.body}
                 </p>
-                {i < FLOW.length - 1 ? (
-                  <span
-                    aria-hidden
-                    className="absolute right-2 top-10 hidden h-px w-4 bg-line lg:block"
-                  />
-                ) : null}
               </li>
             ))}
           </ol>
         </div>
       </section>
 
-      {/* Capabilities */}
-      <section className="border-t border-line bg-atmosphere px-5 py-20 text-ink sm:px-8 sm:py-24 lg:px-12">
-        <div className="mx-auto max-w-6xl">
+      {/* Capabilities + floating team Lottie */}
+      <section className="relative overflow-hidden border-t border-line bg-atmosphere px-5 py-20 text-ink sm:px-8 sm:py-24 lg:px-12">
+        <LandingLottie
+          src="/lottie/team-work.json"
+          className="pointer-events-none absolute -right-16 bottom-0 h-64 w-64 opacity-30 sm:h-80 sm:w-80 lg:opacity-40"
+          tone="mist"
+          speed={0.7}
+        />
+        <div className="relative z-10 mx-auto max-w-6xl">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon">
             Inside the product
           </p>
@@ -352,9 +396,13 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Statutory credibility */}
-      <section className="border-t border-line bg-ink px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
-        <div className="mx-auto max-w-6xl">
+      <section className="relative overflow-hidden border-t border-line bg-ink px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
+        <LandingLottie
+          src="/lottie/remittance-pack.json"
+          className="pointer-events-none absolute right-0 top-8 h-56 w-56 opacity-40 sm:right-8 sm:h-72 sm:w-72 lg:opacity-55"
+          speed={0.8}
+        />
+        <div className="relative z-10 mx-auto max-w-6xl">
           <div className="max-w-2xl">
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon-mist/60">
               Statutory core
@@ -385,9 +433,8 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Audience + CTA */}
       <section className="bg-mist px-5 py-20 text-ink sm:px-8 sm:py-24 lg:px-12">
-        <div className="mx-auto flex max-w-6xl flex-col gap-12 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mx-auto flex max-w-6xl flex-col gap-12 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-xl">
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon">
               Who it&apos;s for
@@ -400,18 +447,24 @@ export function LandingPage() {
               brand it, invite HR, run payroll, and keep sensitive clears with
               Super Admin.
             </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <CtaLink href="/signup" variant="ink">
+                Start a company workspace
+              </CtaLink>
+              <a
+                href="/login"
+                className="inline-flex h-11 items-center justify-center rounded-lg border border-line bg-foam px-6 text-sm font-medium text-ink transition hover:border-lagoon/40 hover:bg-lagoon-mist/40"
+              >
+                Log in
+              </a>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <CtaLink href="/signup" variant="ink">
-              Start a company workspace
-            </CtaLink>
-            <a
-              href="/login"
-              className="inline-flex h-11 items-center justify-center rounded-lg border border-line bg-foam px-6 text-sm font-medium text-ink transition hover:border-lagoon/40 hover:bg-lagoon-mist/40"
-            >
-              Log in
-            </a>
-          </div>
+          <LandingLottie
+            src="/lottie/approval.json"
+            className="mx-auto h-48 w-48 sm:h-56 sm:w-56 lg:mx-0"
+            tone="mist"
+            speed={0.9}
+          />
         </div>
       </section>
 
@@ -420,7 +473,18 @@ export function LandingPage() {
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-login-atmosphere opacity-90"
         />
+        <LandingLottie
+          src="/lottie/team-work.json"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 opacity-25 sm:h-[520px] sm:w-[520px]"
+          tone="ink"
+          speed={0.75}
+        />
         <div className="relative z-10 mx-auto max-w-3xl text-center">
+          <LandingLottie
+            src="/lottie/approval.json"
+            className="mx-auto mb-6 h-28 w-28 sm:h-32 sm:w-32"
+            tone="ink"
+          />
           <h2 className="font-display text-3xl font-semibold tracking-tight text-foam sm:text-5xl">
             Open the command center
           </h2>

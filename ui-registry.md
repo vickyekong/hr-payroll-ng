@@ -112,7 +112,21 @@ Last updated: 2026-08-08
 | Motion | `.animate-soft-rise`, `.animate-fade-up`, `.animate-lagoon-breathe` |
 | Dividers | `border-line` (light) / `border-white/10–15` (dark) |
 
-**Pattern notes:** Hero is one composition — product name is the H1; salary-truth numbers sit in the atmosphere without card chrome. Hard `<a href>` for auth CTAs. Feature sell uses numbered pillars + capability lists, not card grids.
+**Pattern notes:** Hero is one composition — product name is the H1; salary-truth numbers sit in the atmosphere without card chrome. Hard `<a href>` for auth CTAs. Feature sell uses numbered pillars + capability lists, not card grids. Motion: brand Lagoon Ink Lotties via `LandingLottie` (`lottie-react`), lazy-fetched from `/public/lottie`, with `prefers-reduced-motion` pause and optional hue tone filters for third-party packs.
+
+---
+
+### Landing Lottie
+
+File: `src/components/marketing/landing-lottie.tsx`
+Last updated: 2026-08-08
+
+| Property | Class / behavior |
+| -------- | ---------------- |
+| Player | `lottie-react` client component |
+| Assets | `/public/lottie/*.json` (brand + curated) |
+| Reduced motion | autoplay/loop off |
+| Tone filters | `mist` / `ink` hue-rotate for foreign palettes |
 
 ---
 
