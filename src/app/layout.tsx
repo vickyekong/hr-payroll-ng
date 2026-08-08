@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
-import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/brand";
+import { PRODUCT_NAME, PRODUCT_POSITIONING } from "@/lib/brand";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -18,7 +18,7 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: `${PRODUCT_NAME} — People & Payroll`,
-  description: PRODUCT_TAGLINE,
+  description: PRODUCT_POSITIONING,
 };
 
 export const viewport: Viewport = {

@@ -2,3 +2,6 @@
 export const PRODUCT_NAME = "OmniPeople";
 export const PRODUCT_TAGLINE =
   "People operations and payroll in one command center";
+/** Homepage positioning — salary truth for Nigerian payroll. */
+export const PRODUCT_POSITIONING =
+  "The salary truth engine for Nigerian businesses";
