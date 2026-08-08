@@ -31,8 +31,13 @@ import {
   type ParsedSheetDay,
 } from "@/lib/attendance/parse-attendance-sheet";
 
+/** Local calendar day key (avoid UTC shift from toISOString). */
 function dateKey(d: Date): string {
-  return startOfDay(d).toISOString().slice(0, 10);
+  const x = startOfDay(d);
+  const y = x.getFullYear();
+  const m = String(x.getMonth() + 1).padStart(2, "0");
+  const day = String(x.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -849,8 +854,41 @@ export async function compileAttendancePeriod(options: {
     });
   }
 
-  for (const chunk of chunkArray(records, 250)) {
-    await prisma.attendanceDay.createMany({ data: chunk });
+  // Dedupe by employee+day, then upsert so sheet days / retries never 500.
+  const uniqueRecords = new Map<string, (typeof records)[number]>();
+  for (const row of records) {
+    uniqueRecords.set(
+      `${row.employeeId}|${dateKey(row.workDate)}`,
+      row
+    );
+  }
+  const toWrite = [...uniqueRecords.values()];
+
+  for (const chunk of chunkArray(toWrite, 100)) {
+    await prisma.$transaction(
+      chunk.map((row) =>
+        prisma.attendanceDay.upsert({
+          where: {
+            employeeId_workDate: {
+              employeeId: row.employeeId,
+              workDate: row.workDate,
+            },
+          },
+          create: row,
+          update: {
+            shiftId: row.shiftId,
+            status: row.status,
+            clockInAt: row.clockInAt,
+            clockOutAt: row.clockOutAt,
+            workedMinutes: row.workedMinutes,
+            lateMinutes: row.lateMinutes,
+            expectedMinutes: row.expectedMinutes,
+            penaltyKobo: row.penaltyKobo,
+            compiledAt: row.compiledAt,
+          },
+        })
+      )
+    );
   }
 
   if (exemptIds.length > 0) {
