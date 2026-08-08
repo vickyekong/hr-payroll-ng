@@ -116,6 +116,7 @@ export function PayrollWizard({
   onReject,
   onAddAdjustment,
   onDeleteAdjustment,
+  onDeleteAllAdjustments,
 }: {
   run: WizardRun;
   preflight: PreflightData | null;
@@ -141,6 +142,7 @@ export function PayrollWizard({
   onReject?: () => void;
   onAddAdjustment: (e: React.FormEvent<HTMLFormElement>) => void;
   onDeleteAdjustment: (id: string) => void;
+  onDeleteAllAdjustments: () => void;
 }) {
   const isDraft = run.status === "DRAFT";
   const defaultStep =
@@ -425,8 +427,20 @@ export function PayrollWizard({
 
           {run.adjustments.length > 0 && (
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
                 <CardTitle>Adjustments ({run.adjustments.length})</CardTitle>
+                {isDraft && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-red-700 border-red-200 hover:bg-red-50 hover:text-red-800"
+                    disabled={loading}
+                    onClick={onDeleteAllAdjustments}
+                  >
+                    Remove all
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 <Table>

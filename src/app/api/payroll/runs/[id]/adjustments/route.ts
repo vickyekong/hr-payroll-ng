@@ -105,3 +105,62 @@ export async function POST(
     return handleApiError(error);
   }
 }
+
+/** Remove every adjustment on a draft run and recalculate payslips. */
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await requireAuth();
+    if (!can(session.user.role, "runPayroll")) {
+      throw new AuthError("Forbidden", 403);
+    }
+
+    const run = await prisma.payrollRun.findFirst({
+      where: { id: params.id, companyId: session.user.companyId },
+      select: { id: true, status: true },
+    });
+    if (!run) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    if (run.status !== "DRAFT") {
+      return NextResponse.json(
+        { error: "Can only delete adjustments on draft runs" },
+        { status: 400 }
+      );
+    }
+
+    const deleted = await prisma.payrollAdjustment.deleteMany({
+      where: { payrollRunId: run.id },
+    });
+
+    if (deleted.count > 0) {
+      await recalculatePayrollRun(run.id, session.user.companyId);
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        companyId: session.user.companyId,
+        action: "DELETE_ALL_ADJUSTMENTS",
+        entityType: "PayrollRun",
+        entityId: run.id,
+        performedById: session.user.id,
+        changes: { deletedCount: deleted.count },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: deleted.count,
+    });
+  } catch (error) {
+    if (error instanceof PayrollRunError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      );
+    }
+    return handleApiError(error);
+  }
+}

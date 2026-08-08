@@ -181,6 +181,29 @@ function PayrollRunDetailInner() {
     }
   }
 
+  async function deleteAllAdjustments() {
+    const n = run?.adjustments?.length ?? 0;
+    if (
+      !confirm(
+        `Remove all ${n} adjustment${n === 1 ? "" : "s"} and recalculate payslips?`
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    const res = await fetch(`/api/payroll/runs/${params.id}/adjustments`, {
+      method: "DELETE",
+    });
+    const data = await res.json().catch(() => ({}));
+    setLoading(false);
+    if (res.ok) {
+      loadRun();
+      loadPreflight();
+    } else {
+      alert(data.error ?? "Failed to remove adjustments");
+    }
+  }
+
   async function addAdjustment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -253,6 +276,7 @@ function PayrollRunDetailInner() {
         onReject={rejectWithReason}
         onAddAdjustment={addAdjustment}
         onDeleteAdjustment={deleteAdjustment}
+        onDeleteAllAdjustments={deleteAllAdjustments}
       />
     </AppShell>
   );
