@@ -17,12 +17,12 @@ function CtaLink({
 }) {
   const className =
     variant === "primary"
-      ? "inline-flex h-11 items-center justify-center rounded-lg bg-lagoon px-6 text-sm font-medium text-foam transition hover:bg-lagoon-deep"
+      ? "inline-flex h-11 items-center justify-center rounded-lg bg-lagoon px-6 text-sm font-medium text-foam shadow-soft transition hover:bg-lagoon-deep"
       : variant === "ink"
         ? "inline-flex h-11 items-center justify-center rounded-lg bg-ink px-6 text-sm font-medium text-foam transition hover:bg-ink-soft"
         : variant === "outline"
-          ? "inline-flex h-11 items-center justify-center rounded-lg border border-white/25 bg-white/5 px-6 text-sm font-medium text-foam backdrop-blur-sm transition hover:bg-white/10"
-          : "rounded-lg px-3 py-2 text-sm font-medium text-lagoon-mist/90 transition hover:bg-white/10 hover:text-foam";
+          ? "inline-flex h-11 items-center justify-center rounded-lg border border-white/30 bg-white/10 px-6 text-sm font-medium text-foam backdrop-blur-sm transition hover:bg-white/15"
+          : "rounded-lg px-3 py-2 text-sm font-medium text-lagoon-mist transition hover:bg-white/10 hover:text-foam";
 
   return (
     <a href={href} className={className}>
@@ -129,14 +129,14 @@ export function LandingPage() {
           </CtaLink>
           <a
             href="/signup"
-            className="rounded-lg bg-lagoon px-3.5 py-2 text-sm font-medium text-foam transition hover:bg-lagoon-deep"
+            className="rounded-lg bg-lagoon px-3.5 py-2 text-sm font-medium text-foam shadow-soft transition hover:bg-lagoon-deep"
           >
             Sign up
           </a>
         </nav>
       </header>
 
-      {/* Hero — brand + salary truth with living Lottie field */}
+      {/* Hero — readable type over soft atmosphere + contained motion */}
       <section className="relative isolate overflow-hidden">
         <div
           aria-hidden
@@ -144,18 +144,22 @@ export function LandingPage() {
         />
         <div
           aria-hidden
-          className="animate-lagoon-breathe pointer-events-none absolute -right-24 top-1/4 h-[420px] w-[420px] rounded-full bg-lagoon/20 blur-3xl"
+          className="animate-lagoon-breathe pointer-events-none absolute -right-16 top-[18%] h-[380px] w-[380px] rounded-full bg-lagoon/25 blur-3xl lg:h-[460px] lg:w-[460px]"
+        />
+        <div
+          aria-hidden
+          className="landing-hero-scrim pointer-events-none absolute inset-0"
         />
 
-        <div className="relative z-10 mx-auto grid min-h-[calc(100dvh-4.5rem)] max-w-6xl items-center gap-12 px-5 pb-20 pt-8 sm:px-8 sm:pb-24 lg:grid-cols-12 lg:gap-10 lg:px-12 lg:pb-28">
-          <div className="animate-soft-rise lg:col-span-6 xl:col-span-7">
-            <h1 className="font-display text-5xl font-semibold leading-[0.98] tracking-tight text-foam sm:text-6xl md:text-7xl">
+        <div className="relative z-10 mx-auto grid min-h-[calc(100dvh-4.5rem)] max-w-6xl items-center gap-12 px-5 pb-16 pt-8 sm:px-8 sm:pb-20 lg:grid-cols-12 lg:gap-12 lg:px-12 lg:pb-24">
+          <div className="animate-soft-rise relative lg:col-span-6 xl:col-span-7">
+            <h1 className="font-display text-5xl font-semibold leading-[0.98] tracking-tight text-foam drop-shadow-[0_1px_12px_rgb(11_46_51_/_0.45)] sm:text-6xl md:text-7xl">
               {PRODUCT_NAME}
             </h1>
             <p className="mt-5 max-w-lg text-xl font-medium leading-snug text-lagoon-mist sm:text-2xl">
               {PRODUCT_POSITIONING}
             </p>
-            <p className="mt-4 max-w-md text-base leading-relaxed text-lagoon-mist/75 sm:text-lg">
+            <p className="mt-4 max-w-md text-base leading-relaxed text-lagoon-mist/90 sm:text-lg">
               Contracts, clocks, leave, and adjustments become correct net pay —
               with HR clearance before money moves.
             </p>
@@ -167,7 +171,7 @@ export function LandingPage() {
                 Log in to the app
               </CtaLink>
             </div>
-            <p className="mt-5 text-xs text-lagoon-mist/45">
+            <p className="mt-5 text-xs text-lagoon-mist/70">
               Live demo · admin@acme.ng · hr@acme.ng · password123
             </p>
           </div>
@@ -177,23 +181,24 @@ export function LandingPage() {
             style={{ animationDelay: "140ms" }}
           >
             <div className="relative">
+              <div className="pointer-events-none absolute -inset-6 -z-10 rounded-[2rem] bg-gradient-to-br from-ink/50 via-transparent to-lagoon/10 blur-xl" />
               <LandingLottie
                 src="/lottie/salary-truth.json"
-                className="mx-auto mb-4 h-44 w-44 sm:h-52 sm:w-52 lg:absolute lg:-right-2 lg:-top-36 lg:mb-0 lg:h-56 lg:w-56"
+                className="mx-auto mb-5 h-40 w-40 opacity-90 sm:h-48 sm:w-48 lg:absolute lg:-right-1 lg:-top-32 lg:mb-0 lg:h-52 lg:w-52 lg:opacity-95"
                 speed={0.9}
               />
-              <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-lagoon-mist/55">
+              <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-lagoon-mist/70">
                 This month · explained
               </p>
-              <p className="font-display mt-5 text-5xl font-semibold tracking-tight text-foam sm:text-6xl">
+              <p className="font-display mt-4 text-5xl font-semibold tracking-tight text-foam sm:text-6xl">
                 ₦669,420
               </p>
-              <p className="mt-3 max-w-sm text-sm text-lagoon-mist/65 sm:text-base">
+              <p className="mt-3 max-w-sm text-sm leading-relaxed text-lagoon-mist/85 sm:text-base">
                 Take-home after truth — contract, attendance, and remittances in
                 one line of sight
               </p>
 
-              <dl className="mt-10 max-w-md space-y-0 border-t border-white/15" aria-hidden>
+              <dl className="mt-9 max-w-md space-y-0 border-t border-white/20" aria-hidden>
                 {[
                   { label: "Gross contract", value: "₦850,000" },
                   {
@@ -205,8 +210,8 @@ export function LandingPage() {
                 ].map((row, i) => (
                   <div
                     key={row.label}
-                    className={`animate-fade-up flex items-baseline justify-between gap-4 border-b border-white/10 py-3.5 text-sm ${
-                      row.emph ? "text-base" : "text-lagoon-mist/70"
+                    className={`animate-fade-up flex items-baseline justify-between gap-4 border-b border-white/15 py-3.5 text-sm ${
+                      row.emph ? "text-base" : "text-lagoon-mist/80"
                     }`}
                     style={{ animationDelay: `${220 + i * 70}ms` }}
                   >
@@ -228,32 +233,42 @@ export function LandingPage() {
             </div>
           </div>
         </div>
+
+        {/* Soft handoff into light content */}
+        <div
+          aria-hidden
+          className="landing-fade-to-mist pointer-events-none absolute inset-x-0 bottom-0 h-28"
+        />
       </section>
 
-      <section className="relative overflow-hidden border-y border-white/10 bg-ink-soft/60 px-5 py-12 sm:px-8 lg:px-12">
+      {/* Tagline bridge — ink → mist blend */}
+      <section className="relative overflow-hidden bg-mist px-5 py-14 text-ink sm:px-8 sm:py-16 lg:px-12">
+        <div
+          aria-hidden
+          className="landing-fade-from-ink pointer-events-none absolute inset-x-0 top-0 h-20"
+        />
         <LandingLottie
           src="/lottie/flow-spark.json"
-          className="pointer-events-none absolute left-4 top-1/2 h-24 w-24 -translate-y-1/2 opacity-50 sm:left-10 sm:h-28 sm:w-28"
+          className="pointer-events-none absolute left-2 top-1/2 h-20 w-20 -translate-y-1/2 opacity-25 sm:left-8 sm:h-24 sm:w-24"
           speed={1.1}
         />
         <LandingLottie
           src="/lottie/flow-spark.json"
-          className="pointer-events-none absolute right-4 top-1/2 h-24 w-24 -translate-y-1/2 opacity-50 sm:right-10 sm:h-28 sm:w-28"
+          className="pointer-events-none absolute right-2 top-1/2 h-20 w-20 -translate-y-1/2 opacity-25 sm:right-8 sm:h-24 sm:w-24"
           speed={0.95}
         />
-        <p className="relative z-10 mx-auto max-w-3xl text-center text-lg leading-relaxed text-lagoon-mist/85 sm:text-xl">
+        <p className="relative z-10 mx-auto max-w-3xl text-center text-lg font-medium leading-relaxed text-ink-soft sm:text-xl">
           {PRODUCT_TAGLINE} — built so Nigerian HR teams stop reconciling three
           tools the night before payday.
         </p>
       </section>
 
-      {/* Pillars with Lottie icons */}
-      <section className="bg-mist px-5 py-20 text-ink sm:px-8 sm:py-24 lg:px-12">
+      <section className="bg-mist px-5 pb-20 text-ink sm:px-8 sm:pb-24 lg:px-12">
         <div className="mx-auto max-w-6xl">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon">
             Why teams switch
           </p>
-          <h2 className="font-display mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="font-display mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
             Payroll that explains itself
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
@@ -289,7 +304,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* How it works — Lottie stage per step */}
       <section className="border-t border-line bg-foam px-5 py-20 text-ink sm:px-8 sm:py-24 lg:px-12">
         <div className="mx-auto max-w-6xl">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon">
@@ -307,7 +321,7 @@ export function LandingPage() {
           <ol className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {FLOW.map((item) => (
               <li key={item.step} className="relative">
-                <div className="mb-4 flex h-36 items-center justify-center overflow-hidden rounded-xl bg-atmosphere sm:h-40">
+                <div className="mb-4 flex h-36 items-center justify-center overflow-hidden rounded-xl bg-atmosphere ring-1 ring-line/60 sm:h-40">
                   <LandingLottie
                     src={item.lottie}
                     className="h-32 w-32 sm:h-36 sm:w-36"
@@ -321,7 +335,7 @@ export function LandingPage() {
                     speed={0.85}
                   />
                 </div>
-                <span className="font-display text-3xl font-semibold text-lagoon/35">
+                <span className="font-display text-3xl font-semibold text-lagoon/40">
                   {item.step}
                 </span>
                 <h3 className="mt-2 text-base font-semibold text-ink">
@@ -336,13 +350,16 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Capabilities + floating team Lottie */}
       <section className="relative overflow-hidden border-t border-line bg-atmosphere px-5 py-20 text-ink sm:px-8 sm:py-24 lg:px-12">
         <LandingLottie
           src="/lottie/team-work.json"
-          className="pointer-events-none absolute -right-16 bottom-0 h-64 w-64 opacity-30 sm:h-80 sm:w-80 lg:opacity-40"
+          className="pointer-events-none absolute -right-20 bottom-[-2rem] h-64 w-64 opacity-20 sm:h-80 sm:w-80 lg:opacity-25"
           tone="mist"
           speed={0.7}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-transparent via-mist/40 to-mist/80 md:w-2/5"
         />
         <div className="relative z-10 mx-auto max-w-6xl">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon">
@@ -385,18 +402,22 @@ export function LandingPage() {
       <section className="relative overflow-hidden border-t border-line bg-ink px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
         <LandingLottie
           src="/lottie/remittance-pack.json"
-          className="pointer-events-none absolute right-0 top-8 h-56 w-56 opacity-40 sm:right-8 sm:h-72 sm:w-72 lg:opacity-55"
+          className="pointer-events-none absolute right-0 top-6 h-52 w-52 opacity-30 sm:right-6 sm:h-64 sm:w-64 lg:opacity-40"
           speed={0.8}
+        />
+        <div
+          aria-hidden
+          className="landing-text-veil pointer-events-none absolute inset-0"
         />
         <div className="relative z-10 mx-auto max-w-6xl">
           <div className="max-w-2xl">
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon-mist/60">
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon-mist/75">
               Statutory core
             </p>
             <h2 className="font-display mt-3 text-3xl font-semibold tracking-tight text-foam sm:text-4xl">
               Nigerian remittances without a second set of books
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-lagoon-mist/75 sm:text-lg">
+            <p className="mt-4 text-base leading-relaxed text-lagoon-mist/90 sm:text-lg">
               Every run snapshots the rules it used. Remittance packs and payslips
               stay aligned — so month-end filing is a handoff, not a rebuild.
             </p>
@@ -406,13 +427,15 @@ export function LandingPage() {
             {STATUTORY.map((item, i) => (
               <div
                 key={item.name}
-                className="animate-fade-up border-t border-white/15 pt-5"
+                className="animate-fade-up border-t border-white/20 pt-5"
                 style={{ animationDelay: `${i * 60}ms` }}
               >
                 <p className="font-display text-2xl font-semibold text-foam">
                   {item.name}
                 </p>
-                <p className="mt-2 text-sm text-lagoon-mist/65">{item.detail}</p>
+                <p className="mt-2 text-sm leading-relaxed text-lagoon-mist/75">
+                  {item.detail}
+                </p>
               </div>
             ))}
           </div>
@@ -447,7 +470,7 @@ export function LandingPage() {
           </div>
           <LandingLottie
             src="/lottie/approval.json"
-            className="mx-auto h-48 w-48 sm:h-56 sm:w-56 lg:mx-0"
+            className="mx-auto h-44 w-44 sm:h-52 sm:w-52 lg:mx-0"
             tone="mist"
             speed={0.9}
           />
@@ -457,24 +480,28 @@ export function LandingPage() {
       <section className="relative overflow-hidden bg-ink px-5 py-24 sm:px-8 lg:px-12">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-login-atmosphere opacity-90"
+          className="pointer-events-none absolute inset-0 bg-login-atmosphere"
         />
         <LandingLottie
           src="/lottie/team-work.json"
-          className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 opacity-25 sm:h-[520px] sm:w-[520px]"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 opacity-15 sm:h-[440px] sm:w-[440px]"
           tone="ink"
           speed={0.75}
+        />
+        <div
+          aria-hidden
+          className="landing-cta-veil pointer-events-none absolute inset-0"
         />
         <div className="relative z-10 mx-auto max-w-3xl text-center">
           <LandingLottie
             src="/lottie/approval.json"
-            className="mx-auto mb-6 h-28 w-28 sm:h-32 sm:w-32"
+            className="mx-auto mb-6 h-24 w-24 opacity-90 sm:h-28 sm:w-28"
             tone="ink"
           />
           <h2 className="font-display text-3xl font-semibold tracking-tight text-foam sm:text-5xl">
             Open the command center
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-base text-lagoon-mist/75">
+          <p className="mx-auto mt-4 max-w-lg text-base leading-relaxed text-lagoon-mist/90">
             Create a workspace in minutes, or sign in to the tenant you already
             run. Demo accounts stay available while you evaluate.
           </p>
@@ -490,8 +517,8 @@ export function LandingPage() {
       </section>
 
       <footer className="border-t border-white/10 bg-ink px-5 py-8 sm:px-8 lg:px-12">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-lagoon-mist/45 sm:flex-row">
-          <p className="font-display text-sm text-lagoon-mist/70">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-lagoon-mist/55 sm:flex-row">
+          <p className="font-display text-sm text-lagoon-mist/80">
             {PRODUCT_NAME}
           </p>
           <p>
