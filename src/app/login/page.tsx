@@ -38,6 +38,10 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen min-h-dvh overflow-x-hidden bg-login-atmosphere">
+      <div
+        aria-hidden
+        className="landing-plus-field-login pointer-events-none absolute inset-0"
+      />
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col justify-center gap-8 px-4 py-10 sm:gap-10 sm:px-6 sm:py-12 lg:flex-row lg:items-center lg:gap-16 lg:px-10">
         <div className="animate-soft-rise max-w-md text-foam lg:flex-1">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon-mist/70">

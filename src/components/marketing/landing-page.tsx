@@ -144,6 +144,10 @@ export function LandingPage() {
         />
         <div
           aria-hidden
+          className="landing-plus-field pointer-events-none absolute inset-0"
+        />
+        <div
+          aria-hidden
           className="animate-lagoon-breathe pointer-events-none absolute -right-16 top-[18%] h-[380px] w-[380px] rounded-full bg-lagoon/25 blur-3xl lg:h-[460px] lg:w-[460px]"
         />
         <div
@@ -400,6 +404,10 @@ export function LandingPage() {
       </section>
 
       <section className="relative overflow-hidden border-t border-line bg-ink px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
+        <div
+          aria-hidden
+          className="landing-plus-field pointer-events-none absolute inset-0 opacity-[0.18]"
+        />
         <LandingLottie
           src="/lottie/remittance-pack.json"
           className="pointer-events-none absolute right-0 top-6 h-52 w-52 opacity-30 sm:right-6 sm:h-64 sm:w-64 lg:opacity-40"
@@ -481,6 +489,10 @@ export function LandingPage() {
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-login-atmosphere"
+        />
+        <div
+          aria-hidden
+          className="landing-plus-field-cta pointer-events-none absolute inset-0"
         />
         <LandingLottie
           src="/lottie/team-work.json"
