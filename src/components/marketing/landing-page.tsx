@@ -1,35 +1,53 @@
-import Link from "next/link";
 import {
   PRODUCT_NAME,
   PRODUCT_POSITIONING,
   PRODUCT_TAGLINE,
 } from "@/lib/brand";
 
+/** Hard <a> navigations so Sign up never soft-routes into the login shell by mistake. */
+function CtaLink({
+  href,
+  children,
+  variant,
+}: {
+  href: string;
+  children: React.ReactNode;
+  variant: "primary" | "ghost" | "outline";
+}) {
+  const className =
+    variant === "primary"
+      ? "inline-flex h-11 items-center justify-center rounded-lg bg-lagoon px-6 text-sm font-medium text-foam transition hover:bg-lagoon-deep"
+      : variant === "outline"
+        ? "inline-flex h-11 items-center justify-center rounded-lg border border-white/25 bg-white/5 px-6 text-sm font-medium text-foam backdrop-blur-sm transition hover:bg-white/10"
+        : "rounded-lg px-3 py-2 text-sm font-medium text-lagoon-mist/90 transition hover:bg-white/10 hover:text-foam";
+
+  return (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  );
+}
+
 export function LandingPage() {
   return (
     <div className="min-h-screen min-h-dvh bg-ink text-foam">
-      {/* Nav */}
       <header className="relative z-20 flex items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
         <p className="font-display text-xl font-semibold tracking-tight text-foam sm:text-2xl">
           {PRODUCT_NAME}
         </p>
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            href="/login"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-lagoon-mist/90 transition hover:bg-white/10 hover:text-foam"
-          >
+          <CtaLink href="/login" variant="ghost">
             Log in
-          </Link>
-          <Link
+          </CtaLink>
+          <a
             href="/signup"
             className="rounded-lg bg-lagoon px-3.5 py-2 text-sm font-medium text-foam transition hover:bg-lagoon-deep"
           >
             Sign up
-          </Link>
+          </a>
         </div>
       </header>
 
-      {/* Hero — one composition: brand, headline, line, CTAs, full-bleed plane */}
       <section className="relative isolate overflow-hidden">
         <div
           aria-hidden
@@ -57,24 +75,17 @@ export function LandingPage() {
               with HR clearance before money moves.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/signup"
-                className="inline-flex h-11 items-center justify-center rounded-lg bg-lagoon px-6 text-sm font-medium text-foam transition hover:bg-lagoon-deep"
-              >
+              <CtaLink href="/signup" variant="primary">
                 Create your workspace
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex h-11 items-center justify-center rounded-lg border border-white/25 bg-white/5 px-6 text-sm font-medium text-foam backdrop-blur-sm transition hover:bg-white/10"
-              >
+              </CtaLink>
+              <CtaLink href="/login" variant="outline">
                 Log in to the app
-              </Link>
+              </CtaLink>
             </div>
             <p className="mt-4 text-xs text-lagoon-mist/50">
               Demo still open · admin@acme.ng · hr@acme.ng · password123
             </p>
 
-            {/* Mobile salary-truth strip */}
             <div
               className="animate-fade-up mt-10 rounded-xl border border-white/10 bg-white/5 p-5 lg:hidden"
               style={{ animationDelay: "100ms" }}
@@ -92,7 +103,6 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Dominant visual plane — salary truth composition */}
           <div
             className="animate-fade-up relative hidden min-h-[320px] lg:block"
             style={{ animationDelay: "120ms" }}
@@ -139,7 +149,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Salary truth */}
       <section className="bg-mist px-5 py-20 text-ink sm:px-8 lg:px-12">
         <div className="mx-auto max-w-3xl animate-fade-up">
           <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -153,7 +162,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Remittance packs */}
       <section className="border-t border-line bg-foam px-5 py-20 text-ink sm:px-8 lg:px-12">
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -167,7 +175,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Nigeria + attendance */}
       <section className="border-t border-line bg-atmosphere px-5 py-20 text-ink sm:px-8 lg:px-12">
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -181,7 +188,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Closing CTA */}
       <section className="bg-ink px-5 py-20 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-3xl font-semibold tracking-tight text-foam sm:text-4xl">
@@ -192,18 +198,12 @@ export function LandingPage() {
             you already use.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/signup"
-              className="inline-flex h-11 items-center justify-center rounded-lg bg-lagoon px-6 text-sm font-medium text-foam transition hover:bg-lagoon-deep"
-            >
+            <CtaLink href="/signup" variant="primary">
               Sign up
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex h-11 items-center justify-center rounded-lg border border-white/25 px-6 text-sm font-medium text-foam transition hover:bg-white/10"
-            >
+            </CtaLink>
+            <CtaLink href="/login" variant="outline">
               Log in
-            </Link>
+            </CtaLink>
           </div>
         </div>
       </section>

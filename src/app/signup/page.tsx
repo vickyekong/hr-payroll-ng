@@ -61,27 +61,24 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen min-h-dvh overflow-x-hidden bg-login-atmosphere">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-40"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d8f0f2' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
-        }}
-      />
-
+    <div className="relative flex min-h-screen min-h-dvh overflow-x-hidden bg-atmosphere text-ink">
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col justify-center gap-8 px-4 py-10 sm:gap-10 sm:px-6 sm:py-12 lg:flex-row lg:items-center lg:gap-16 lg:px-10">
-        <div className="animate-soft-rise max-w-md text-foam lg:flex-1">
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon-mist/70">
-            Get started
+        <div className="animate-soft-rise max-w-md lg:flex-1">
+          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-lagoon">
+            New company
           </p>
-          <h1 className="font-display mt-3 text-4xl font-semibold leading-[1.05] tracking-tight text-foam sm:mt-4 sm:text-5xl">
+          <h1 className="font-display mt-3 text-4xl font-semibold leading-[1.05] tracking-tight text-ink sm:mt-4 sm:text-5xl">
             Create your {PRODUCT_NAME} workspace
           </h1>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-lagoon-mist/75 sm:mt-4 sm:text-base">
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted sm:mt-4 sm:text-base">
             {PRODUCT_TAGLINE}. Your company gets its own space — Super Admin
             first, then invite HR, brand it, and run payroll.
+          </p>
+          <p className="mt-6 text-sm text-muted">
+            Already have an account?{" "}
+            <a href="/login" className="font-medium text-lagoon underline underline-offset-2">
+              Log in
+            </a>
           </p>
         </div>
 
@@ -91,11 +88,11 @@ export default function SignupPage() {
         >
           <form
             onSubmit={handleSubmit}
-            className="rounded-xl border border-white/15 bg-foam/95 p-5 shadow-soft backdrop-blur-sm sm:p-6"
+            className="rounded-xl border border-line bg-foam p-5 shadow-soft sm:p-6"
           >
             <p className="text-sm font-medium text-ink">Company signup</p>
             <p className="mt-1 text-xs text-muted">
-              Creates your tenant with Nigerian NTA 2025 tax defaults
+              Not the login form — this creates a new tenant with NTA 2025 defaults
             </p>
 
             <div className="mt-5 space-y-4">
@@ -176,14 +173,8 @@ export default function SignupPage() {
             </div>
           </form>
 
-          <p className="mt-4 text-center text-xs text-lagoon-mist/60">
-            Already have an account?{" "}
-            <Link href="/login" className="underline underline-offset-2">
-              Sign in
-            </Link>
-          </p>
-          <p className="mt-2 text-center text-xs text-lagoon-mist/45">
-            Demo still live · admin@acme.ng · hr@acme.ng · password123
+          <p className="mt-4 text-center text-xs text-muted">
+            Demo still available · admin@acme.ng · hr@acme.ng · password123
           </p>
         </div>
       </div>
