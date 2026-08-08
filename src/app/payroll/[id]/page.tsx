@@ -116,18 +116,29 @@ function PayrollRunDetailInner() {
 
   async function recalculate() {
     setLoading(true);
-    const res = await fetch(`/api/payroll/runs/${params.id}/recalculate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ syncAttendance: false }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setLoading(false);
-    if (res.ok) {
-      loadRun();
-      loadPreflight();
-    } else {
-      alert(data.error ?? "Recalculate failed");
+    try {
+      const res = await fetch(`/api/payroll/runs/${params.id}/recalculate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ syncAttendance: false }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        loadRun();
+        loadPreflight();
+      } else {
+        const detail =
+          typeof data.error === "string"
+            ? data.error
+            : res.status === 504 || res.status === 408
+              ? "Recalculate timed out — try again in a moment."
+              : `Recalculate failed (${res.status})`;
+        alert(detail);
+      }
+    } catch {
+      alert("Recalculate failed — network or server timeout. Try again.");
+    } finally {
+      setLoading(false);
     }
   }
 

@@ -9,7 +9,7 @@ import { syncAttendanceIntoPayroll } from "@/lib/attendance/service";
 import { z } from "zod";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const bodySchema = z.object({
   /** Re-compile clock attendance and refresh missed-shift deductions (default false — HR must opt in). */

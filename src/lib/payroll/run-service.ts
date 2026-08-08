@@ -36,7 +36,12 @@ async function loadRunContext(
   companyId: string,
   options?: { preferSnapshot?: boolean }
 ) {
-  await ensurePayrollHardeningSchema();
+  try {
+    await ensurePayrollHardeningSchema();
+  } catch (err) {
+    // Don't block payroll if additive DDL is slow/unavailable on the pooler
+    console.error("ensurePayrollHardeningSchema:", err);
+  }
 
   const run = await prisma.payrollRun.findFirst({
     where: { id: runId, companyId },
@@ -148,18 +153,24 @@ function buildLeaveAdjustments(
   };
 }
 
-async function computeYtd(
-  employeeId: string,
+async function loadYtdTotalsByEmployee(
   companyId: string,
   periodYear: number,
   periodMonth: number,
-  currentGross: bigint,
-  currentPaye: bigint,
-  currentNet: bigint
+  employeeIds: string[]
 ) {
-  const ytdPayslips = await prisma.payslip.findMany({
+  const totals = new Map<
+    string,
+    { gross: bigint; paye: bigint; net: bigint }
+  >();
+  for (const id of employeeIds) {
+    totals.set(id, { gross: 0n, paye: 0n, net: 0n });
+  }
+  if (employeeIds.length === 0 || periodMonth <= 1) return totals;
+
+  const prior = await prisma.payslip.findMany({
     where: {
-      employeeId,
+      employeeId: { in: employeeIds },
       payrollRun: {
         companyId,
         periodYear,
@@ -167,17 +178,26 @@ async function computeYtd(
         status: { in: ["APPROVED", "PAID"] },
       },
     },
+    select: {
+      employeeId: true,
+      grossPayKobo: true,
+      payeKobo: true,
+      netPayKobo: true,
+    },
   });
 
-  return {
-    ytdGrossKobo:
-      ytdPayslips.reduce((sum, slip) => sum + slip.grossPayKobo, 0n) +
-      currentGross,
-    ytdPayeKobo:
-      ytdPayslips.reduce((sum, slip) => sum + slip.payeKobo, 0n) + currentPaye,
-    ytdNetKobo:
-      ytdPayslips.reduce((sum, slip) => sum + slip.netPayKobo, 0n) + currentNet,
-  };
+  for (const slip of prior) {
+    const cur = totals.get(slip.employeeId) ?? {
+      gross: 0n,
+      paye: 0n,
+      net: 0n,
+    };
+    cur.gross += slip.grossPayKobo;
+    cur.paye += slip.payeKobo;
+    cur.net += slip.netPayKobo;
+    totals.set(slip.employeeId, cur);
+  }
+  return totals;
 }
 
 function payslipDataFromBreakdown(
@@ -217,9 +237,11 @@ function payslipDataFromBreakdown(
 export async function recalculatePayrollRun(
   runId: string,
   companyId: string,
-  options?: { employeeId?: string }
+  options?: { employeeId?: string; preferSnapshot?: boolean }
 ) {
-  const { run, config } = await loadRunContext(runId, companyId);
+  const { run, config } = await loadRunContext(runId, companyId, {
+    preferSnapshot: options?.preferSnapshot,
+  });
 
   if (run.status !== "DRAFT") {
     throw new PayrollRunError(
@@ -247,9 +269,14 @@ export async function recalculatePayrollRun(
     throw new PayrollRunError("Employee not found or not active", 404);
   }
 
-  const processedEmployeeIds: string[] = [];
+  const ytdPrior = await loadYtdTotalsByEmployee(
+    companyId,
+    run.periodYear,
+    run.periodMonth,
+    employees.map((e) => e.id)
+  );
 
-  for (const employee of employees) {
+  const payslipRows = employees.map((employee) => {
     const leaveAdj = buildLeaveAdjustments(
       employee,
       unpaidLeaveMap.get(employee.id) ?? 0,
@@ -272,54 +299,57 @@ export async function recalculatePayrollRun(
       adjustments
     );
 
-    const ytd = await computeYtd(
-      employee.id,
-      companyId,
-      run.periodYear,
-      run.periodMonth,
-      breakdown.earnings.grossPayKobo,
-      breakdown.deductions.payeKobo,
-      breakdown.netPayKobo
-    );
+    const prior = ytdPrior.get(employee.id) ?? {
+      gross: 0n,
+      paye: 0n,
+      net: 0n,
+    };
 
-    const payslipData = payslipDataFromBreakdown(
-      run.id,
-      employee.id,
-      breakdown,
-      ytd
-    );
+    return payslipDataFromBreakdown(run.id, employee.id, breakdown, {
+      ytdGrossKobo: prior.gross + breakdown.earnings.grossPayKobo,
+      ytdPayeKobo: prior.paye + breakdown.deductions.payeKobo,
+      ytdNetKobo: prior.net + breakdown.netPayKobo,
+    });
+  });
 
-    await prisma.payslip.upsert({
-      where: {
-        payrollRunId_employeeId: {
-          payrollRunId: run.id,
-          employeeId: employee.id,
+  const processedEmployeeIds = payslipRows.map((r) => r.employeeId);
+
+  if (options?.employeeId) {
+    const row = payslipRows[0];
+    if (row) {
+      await prisma.payslip.upsert({
+        where: {
+          payrollRunId_employeeId: {
+            payrollRunId: run.id,
+            employeeId: row.employeeId,
+          },
         },
-      },
-      create: payslipData,
-      update: payslipData,
-    });
-
-    processedEmployeeIds.push(employee.id);
-  }
-
-  // Full run recalc: drop payslips for employees no longer active
-  if (!options?.employeeId) {
-    await prisma.payslip.deleteMany({
-      where: {
-        payrollRunId: run.id,
-        employeeId: { notIn: processedEmployeeIds },
-      },
-    });
+        create: row,
+        update: row,
+      });
+    }
+  } else {
+    // Full-run rewrite: 2 round-trips instead of N upserts (avoids Vercel timeouts).
+    await prisma.payslip.deleteMany({ where: { payrollRunId: run.id } });
+    const chunkSize = 80;
+    for (let i = 0; i < payslipRows.length; i += chunkSize) {
+      await prisma.payslip.createMany({
+        data: payslipRows.slice(i, i + chunkSize),
+      });
+    }
   }
 
   // Freeze the statutory rules used for this draft calculation
-  await prisma.payrollRun.update({
-    where: { id: run.id },
-    data: {
-      statutorySnapshot: serializeBigInts(config) as object,
-    },
-  });
+  try {
+    await prisma.payrollRun.update({
+      where: { id: run.id },
+      data: {
+        statutorySnapshot: serializeBigInts(config) as object,
+      },
+    });
+  } catch (err) {
+    console.error("statutorySnapshot update skipped:", err);
+  }
 
   return { employeeCount: processedEmployeeIds.length };
 }
@@ -374,111 +404,5 @@ export async function reverseAndRegeneratePayrollRun(
   });
 
   // Prefer the frozen snapshot from the original approved calculation
-  return recalculatePayrollRunWithConfigPreference(runId, companyId, true);
-}
-
-async function recalculatePayrollRunWithConfigPreference(
-  runId: string,
-  companyId: string,
-  preferSnapshot: boolean
-) {
-  // Temporarily load with snapshot preference by patching via a one-off path:
-  // recalculatePayrollRun always uses live; for reverse we rehydrate snapshot into liveConfig path.
-  if (!preferSnapshot) {
-    return recalculatePayrollRun(runId, companyId);
-  }
-
-  const { run, config } = await loadRunContext(runId, companyId, {
-    preferSnapshot: true,
-  });
-
-  if (run.status !== "DRAFT") {
-    throw new PayrollRunError(
-      "Can only recalculate draft payroll runs",
-      400
-    );
-  }
-
-  const unpaidLeaveMap = await getUnpaidLeaveMap(
-    companyId,
-    run.periodMonth,
-    run.periodYear
-  );
-  const manualAdjustments = adjustmentsByEmployee(run);
-
-  const employees = await prisma.employee.findMany({
-    where: { companyId, status: "ACTIVE" },
-  });
-
-  const processedEmployeeIds: string[] = [];
-
-  for (const employee of employees) {
-    const leaveAdj = buildLeaveAdjustments(
-      employee,
-      unpaidLeaveMap.get(employee.id) ?? 0,
-      config.workingDaysPerMonth
-    );
-    const manualAdj = manualAdjustments.get(employee.id) ?? {};
-    const adjustments = mergeAdjustments(leaveAdj, manualAdj);
-
-    const breakdown = calculatePayroll(
-      {
-        basicSalaryKobo: employee.basicSalaryKobo,
-        housingAllowanceKobo: employee.housingAllowanceKobo,
-        transportAllowanceKobo: employee.transportAllowanceKobo,
-        otherTaxableAllowancesKobo: employee.otherTaxableAllowancesKobo,
-        nonTaxableReimbursementsKobo: employee.nonTaxableReimbursementsKobo,
-        annualRentKobo: employee.annualRentKobo,
-      },
-      config,
-      { month: run.periodMonth, year: run.periodYear },
-      adjustments
-    );
-
-    const ytd = await computeYtd(
-      employee.id,
-      companyId,
-      run.periodYear,
-      run.periodMonth,
-      breakdown.earnings.grossPayKobo,
-      breakdown.deductions.payeKobo,
-      breakdown.netPayKobo
-    );
-
-    const payslipData = payslipDataFromBreakdown(
-      run.id,
-      employee.id,
-      breakdown,
-      ytd
-    );
-
-    await prisma.payslip.upsert({
-      where: {
-        payrollRunId_employeeId: {
-          payrollRunId: run.id,
-          employeeId: employee.id,
-        },
-      },
-      create: payslipData,
-      update: payslipData,
-    });
-
-    processedEmployeeIds.push(employee.id);
-  }
-
-  await prisma.payslip.deleteMany({
-    where: {
-      payrollRunId: run.id,
-      employeeId: { notIn: processedEmployeeIds },
-    },
-  });
-
-  await prisma.payrollRun.update({
-    where: { id: run.id },
-    data: {
-      statutorySnapshot: serializeBigInts(config) as object,
-    },
-  });
-
-  return { employeeCount: processedEmployeeIds.length };
+  return recalculatePayrollRun(runId, companyId, { preferSnapshot: true });
 }
