@@ -2,9 +2,10 @@ import bcrypt from "bcryptjs";
 import type { Company, User, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { DEFAULT_NTA2025_TAX_BANDS } from "@/lib/payroll/paye";
-import { ensurePayrollHardeningSchema } from "@/lib/ensure-payroll-hardening-schema";
 
 const DEFAULT_DEPARTMENTS = ["Management", "HR", "Finance", "Operations"];
+/** Fast enough for signup UX; still strong for online attacks. */
+const BCRYPT_ROUNDS = 10;
 
 export class TenancyError extends Error {
   constructor(
@@ -50,20 +51,20 @@ export async function bootstrapCompany(
     throw new TenancyError("Password must be at least 8 characters");
   }
 
-  await ensurePayrollHardeningSchema();
-
-  const existing = await prisma.user.findUnique({
-    where: { email: adminEmail },
-    select: { id: true },
-  });
+  // Parallelize uniqueness check + hash (skip DDL here — schema already migrated).
+  const [existing, passwordHash] = await Promise.all([
+    prisma.user.findUnique({
+      where: { email: adminEmail },
+      select: { id: true },
+    }),
+    bcrypt.hash(input.adminPassword, BCRYPT_ROUNDS),
+  ]);
   if (existing) {
     throw new TenancyError(
       "That email is already registered. Sign in or use a different email.",
       409
     );
   }
-
-  const passwordHash = await bcrypt.hash(input.adminPassword, 12);
 
   const result = await prisma.$transaction(async (tx) => {
     const company = await tx.company.create({
@@ -166,7 +167,7 @@ export async function inviteTeamUser(input: InviteTeamUserInput) {
     );
   }
 
-  const passwordHash = await bcrypt.hash(input.password, 12);
+  const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
   return prisma.user.create({
     data: {
       email,
