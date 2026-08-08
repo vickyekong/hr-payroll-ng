@@ -60,7 +60,7 @@ const STEPS = [
   {
     id: 1,
     title: "Aggregate & pre-flight",
-    blurb: "Contracts, clock attendance, and deductions",
+    blurb: "Contracts, deductions, then confirm attendance",
   },
   {
     id: 2,
@@ -270,22 +270,22 @@ export function PayrollWizard({
             <CardHeader>
               <CardTitle>Automated data aggregation</CardTitle>
               <p className="text-sm text-stone-500">
-                Salaries use contracts, unpaid leave, and{" "}
-                <strong>clock attendance</strong>: each missed shift deducts one
-                working-day rate from net pay. Recalculate refreshes attendance
-                from the clock machine for this month.
+                Salaries use contracts and unpaid leave. Clock attendance
+                deductions are <strong>proposed only after HR confirms</strong>{" "}
+                via “Review &amp; apply attendance” — they are not applied
+                automatically.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
               {attendanceImpact && (
                 <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-                  <p className="font-medium">Attendance in this run</p>
+                  <p className="font-medium">Attendance deductions (HR confirmed)</p>
                   <p className="mt-1 text-amber-900/90">
                     {attendanceImpact.employees} staff ·{" "}
                     {attendanceImpact.missedShifts} missed shift
                     {attendanceImpact.missedShifts === 1 ? "" : "s"} ·{" "}
-                    {formatCurrency(BigInt(attendanceImpact.totalKobo))} deducted
-                    from salaries
+                    {formatCurrency(BigInt(attendanceImpact.totalKobo))} proposed
+                    against salaries
                   </p>
                   <Link
                     href="/employees?tab=attendance"
@@ -303,14 +303,14 @@ export function PayrollWizard({
                     variant="outline"
                     disabled={loading}
                   >
-                    Recalculate (with attendance)
+                    Recalculate payslips
                   </Button>
                   <Button
                     onClick={onApplyPenalties}
                     variant="outline"
                     disabled={loading}
                   >
-                    Sync attendance into pay
+                    Review &amp; apply attendance
                   </Button>
                   <Button
                     onClick={onToggleAdjustForm}

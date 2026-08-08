@@ -17,7 +17,7 @@ export function RunPayrollCta({ label }: { label: string }) {
       body: JSON.stringify({
         periodMonth: now.getMonth() + 1,
         periodYear: now.getFullYear(),
-        applyAttendancePenalties: true,
+        applyAttendancePenalties: false,
       }),
     });
     const data = await res.json().catch(() => ({}));

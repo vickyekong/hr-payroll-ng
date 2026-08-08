@@ -33,6 +33,12 @@ export async function GET() {
 export async function POST() {
   try {
     const session = await requirePermission("manageCompanySettings");
+    if (session.user.role !== "SUPER_ADMIN") {
+      throw new AuthError(
+        "Only Super Admin can connect Google Workspace",
+        403
+      );
+    }
 
     if (!isGoogleDriveConfigured()) {
       return NextResponse.json(

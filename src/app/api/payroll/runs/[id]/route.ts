@@ -4,6 +4,7 @@ import { requireAuth, requirePermission, handleApiError } from "@/lib/api-auth";
 import { can } from "@/lib/permissions";
 import {
   reverseAndRegeneratePayrollRun,
+  snapshotStatutoryConfigForRun,
   PayrollRunError,
 } from "@/lib/payroll/run-service";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
@@ -201,6 +202,8 @@ export async function PATCH(
             { status: 400 }
           );
         }
+        // Freeze statutory rules used for this approved historical payroll
+        await snapshotStatutoryConfigForRun(run.id, session.user.companyId);
         update = {
           status: "APPROVED",
           approvedById: session.user.id,

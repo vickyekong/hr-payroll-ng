@@ -12,7 +12,14 @@ import type {
   StatutoryConfigInput,
 } from "./types";
 
-export function calculateGrossPay(
+/** Default payable working days used for daily-rate deductions when company has no override. */
+export const DEFAULT_WORKING_DAYS_PER_MONTH = 22;
+
+/**
+ * Taxable gross = basic + housing + transport + other taxable allowances + bonuses.
+ * Non-taxable reimbursements are intentionally excluded.
+ */
+export function calculateTaxableGross(
   compensation: EmployeeCompensation,
   adjustments: PayrollAdjustments = {}
 ): Kobo {
@@ -21,8 +28,21 @@ export function calculateGrossPay(
     compensation.housingAllowanceKobo,
     compensation.transportAllowanceKobo,
     compensation.otherTaxableAllowancesKobo,
-    compensation.nonTaxableReimbursementsKobo,
     adjustments.bonusKobo ?? 0n
+  );
+}
+
+/**
+ * Total earnings (cash gross) = taxable gross + non-taxable reimbursements.
+ * This is what the employee is paid before deductions; PAYE uses taxable gross only.
+ */
+export function calculateGrossPay(
+  compensation: EmployeeCompensation,
+  adjustments: PayrollAdjustments = {}
+): Kobo {
+  return sumKobo(
+    calculateTaxableGross(compensation, adjustments),
+    compensation.nonTaxableReimbursementsKobo
   );
 }
 
@@ -38,6 +58,9 @@ export function calculatePayroll(
   const unpaidLeaveDeductionKobo = adjustments.unpaidLeaveDeductionKobo ?? 0n;
   const otherDeductionsKobo = adjustments.otherDeductionsKobo ?? 0n;
 
+  const taxableGrossKobo = calculateTaxableGross(compensation, adjustments);
+  const nonTaxableReimbursementsKobo =
+    compensation.nonTaxableReimbursementsKobo;
   const grossPayKobo = calculateGrossPay(compensation, adjustments);
 
   const pension = calculatePension(
@@ -54,15 +77,17 @@ export function calculatePayroll(
     config.nhfRateBps
   );
 
+  // PAYE + min-wage test use taxable gross only (exclude reimbursements)
   const payeDetails = calculatePaye(
-    grossPayKobo,
+    taxableGrossKobo,
     pension.employeeContributionKobo,
     nhfKobo,
     config,
     compensation.annualRentKobo ?? 0n
   );
 
-  const nsitfKobo = calculateNsitf(grossPayKobo, config.nsitfRateBps);
+  // NSITF is an employer levy on taxable emoluments / payroll (not pure reimbursements)
+  const nsitfKobo = calculateNsitf(taxableGrossKobo, config.nsitfRateBps);
 
   const totalEmployeeDeductions = sumKobo(
     payeDetails.monthlyPayeKobo,
@@ -84,6 +109,8 @@ export function calculatePayroll(
       transportAllowanceKobo: compensation.transportAllowanceKobo,
       otherAllowancesKobo: compensation.otherTaxableAllowancesKobo,
       bonusesKobo,
+      nonTaxableReimbursementsKobo,
+      taxableGrossKobo,
       grossPayKobo,
     },
     deductions: {
@@ -117,6 +144,14 @@ export function calculateUnpaidLeaveDeduction(
   return dailyRateKobo * BigInt(unpaidDays);
 }
 
-export function getDailyRateFromMonthly(monthlyGrossKobo: Kobo): Kobo {
-  return monthlyGrossKobo / 22n; // standard working days per month
+/**
+ * Daily rate from a monthly amount using company working-days setting.
+ * Defaults to 22 when not provided.
+ */
+export function getDailyRateFromMonthly(
+  monthlyAmountKobo: Kobo,
+  workingDaysPerMonth: number = DEFAULT_WORKING_DAYS_PER_MONTH
+): Kobo {
+  const days = Math.max(1, Math.floor(workingDaysPerMonth));
+  return monthlyAmountKobo / BigInt(days);
 }

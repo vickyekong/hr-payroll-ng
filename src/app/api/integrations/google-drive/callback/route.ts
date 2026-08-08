@@ -11,7 +11,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user || !can(session.user.role, "manageCompanySettings")) {
+    if (
+      !session?.user ||
+      !can(session.user.role, "manageCompanySettings") ||
+      session.user.role !== "SUPER_ADMIN"
+    ) {
       return NextResponse.redirect(`${settingsUrl}forbidden`);
     }
 

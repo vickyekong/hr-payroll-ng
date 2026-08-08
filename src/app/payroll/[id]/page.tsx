@@ -119,19 +119,11 @@ function PayrollRunDetailInner() {
     const res = await fetch(`/api/payroll/runs/${params.id}/recalculate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ syncAttendance: true }),
+      body: JSON.stringify({ syncAttendance: false }),
     });
     const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (res.ok) {
-      const att = data.attendance;
-      if (att) {
-        alert(
-          att.employeesPenalized > 0
-            ? `Payslips recalculated with clock attendance: ${att.missedShiftDays} missed shift(s) deducted for ${att.employeesPenalized} staff.`
-            : `Payslips recalculated. Clock attendance compiled (${att.daysCompiled} day records) — no missed-shift deductions this period.`
-        );
-      }
       loadRun();
       loadPreflight();
     } else {
@@ -140,6 +132,11 @@ function PayrollRunDetailInner() {
   }
 
   async function applyAttendancePenalties() {
+    const ok = confirm(
+      "Compile this month’s clock attendance and apply missed-shift deductions to draft payslips?\n\nAdmin/Finance remain pay-exempt. This only runs after you confirm."
+    );
+    if (!ok) return;
+
     setLoading(true);
     const res = await fetch("/api/attendance/apply-penalties", {
       method: "POST",

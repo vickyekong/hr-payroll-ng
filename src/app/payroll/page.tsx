@@ -44,7 +44,7 @@ export default function PayrollPage() {
       body: JSON.stringify({
         periodMonth: now.getMonth() + 1,
         periodYear: now.getFullYear(),
-        applyAttendancePenalties: true,
+        applyAttendancePenalties: false,
       }),
     });
     setCreating(false);
@@ -63,8 +63,8 @@ export default function PayrollPage() {
         <div>
           <h1 className="text-2xl font-semibold text-stone-900">Payroll</h1>
           <p className="mt-1 text-sm text-stone-500">
-            OmniPeople 4-step wizard — clock attendance feeds salaries, then
-            guardrails, summary, and Super Admin clearance
+            OmniPeople 4-step wizard — aggregate pay, review attendance
+            deductions, then Super Admin clearance
           </p>
         </div>
         <Button onClick={createRun} disabled={creating}>

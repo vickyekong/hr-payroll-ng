@@ -19,6 +19,8 @@ export interface StatutoryConfigInput {
   craGrossPercentBps: number;
   rentReliefCapKobo: Kobo;
   minimumWageExemptKobo: Kobo;
+  /** Payable working days for daily-rate deductions (default 22). */
+  workingDaysPerMonth: number;
   taxBands: TaxBandConfig[];
 }
 
@@ -65,6 +67,11 @@ export interface PayrollBreakdown {
     transportAllowanceKobo: Kobo;
     otherAllowancesKobo: Kobo;
     bonusesKobo: Kobo;
+    /** Paid but excluded from PAYE / NSITF base */
+    nonTaxableReimbursementsKobo: Kobo;
+    /** Taxable base used for PAYE */
+    taxableGrossKobo: Kobo;
+    /** Total earnings = taxable gross + non-taxable reimbursements */
     grossPayKobo: Kobo;
   };
   deductions: {

@@ -10,12 +10,17 @@ import {
   aggregateAdjustments,
   mergeAdjustments,
 } from "@/lib/payroll/adjustments";
-import { mapStatutoryConfig, serializeBigInts } from "@/lib/payroll/config-mapper";
+import {
+  mapStatutoryConfig,
+  reviveStatutorySnapshot,
+  serializeBigInts,
+} from "@/lib/payroll/config-mapper";
 import {
   sumUnpaidLeaveDaysInPeriod,
   type LeaveRequestDates,
 } from "@/lib/leave/unpaid-leave";
-import type { PayrollAdjustments } from "@/lib/payroll/types";
+import type { PayrollAdjustments, StatutoryConfigInput } from "@/lib/payroll/types";
+import { ensurePayrollHardeningSchema } from "@/lib/ensure-payroll-hardening-schema";
 
 export class PayrollRunError extends Error {
   constructor(
@@ -26,7 +31,13 @@ export class PayrollRunError extends Error {
   }
 }
 
-async function loadRunContext(runId: string, companyId: string) {
+async function loadRunContext(
+  runId: string,
+  companyId: string,
+  options?: { preferSnapshot?: boolean }
+) {
+  await ensurePayrollHardeningSchema();
+
   const run = await prisma.payrollRun.findFirst({
     where: { id: runId, companyId },
     include: {
@@ -43,12 +54,17 @@ async function loadRunContext(runId: string, companyId: string) {
     include: { statutoryConfig: true, taxBands: true },
   });
 
-  const config = mapStatutoryConfig(
+  const liveConfig = mapStatutoryConfig(
     company?.statutoryConfig ?? null,
     company?.taxBands
   );
 
-  return { run, config };
+  const snap = options?.preferSnapshot
+    ? reviveStatutorySnapshot(run.statutorySnapshot)
+    : null;
+  const config: StatutoryConfigInput = snap ?? liveConfig;
+
+  return { run, config, liveConfig };
 }
 
 async function getUnpaidLeaveMap(
@@ -112,20 +128,21 @@ function adjustmentsByEmployee(
 
 function buildLeaveAdjustments(
   employee: Employee,
-  unpaidDays: number
+  unpaidDays: number,
+  workingDaysPerMonth: number
 ): PayrollAdjustments {
   if (unpaidDays <= 0) return {};
 
-  const monthlyGross =
+  // Daily rate from taxable package only (exclude non-taxable reimbursements)
+  const monthlyTaxable =
     employee.basicSalaryKobo +
     employee.housingAllowanceKobo +
     employee.transportAllowanceKobo +
-    employee.otherTaxableAllowancesKobo +
-    employee.nonTaxableReimbursementsKobo;
+    employee.otherTaxableAllowancesKobo;
 
   return {
     unpaidLeaveDeductionKobo: calculateUnpaidLeaveDeduction(
-      getDailyRateFromMonthly(monthlyGross),
+      getDailyRateFromMonthly(monthlyTaxable, workingDaysPerMonth),
       unpaidDays
     ),
   };
@@ -235,7 +252,8 @@ export async function recalculatePayrollRun(
   for (const employee of employees) {
     const leaveAdj = buildLeaveAdjustments(
       employee,
-      unpaidLeaveMap.get(employee.id) ?? 0
+      unpaidLeaveMap.get(employee.id) ?? 0,
+      config.workingDaysPerMonth
     );
     const manualAdj = manualAdjustments.get(employee.id) ?? {};
     const adjustments = mergeAdjustments(leaveAdj, manualAdj);
@@ -295,7 +313,30 @@ export async function recalculatePayrollRun(
     });
   }
 
+  // Freeze the statutory rules used for this draft calculation
+  await prisma.payrollRun.update({
+    where: { id: run.id },
+    data: {
+      statutorySnapshot: serializeBigInts(config) as object,
+    },
+  });
+
   return { employeeCount: processedEmployeeIds.length };
+}
+
+/** Persist / refresh statutory snapshot (also called on approve). */
+export async function snapshotStatutoryConfigForRun(
+  runId: string,
+  companyId: string
+) {
+  const { liveConfig } = await loadRunContext(runId, companyId);
+  await prisma.payrollRun.update({
+    where: { id: runId },
+    data: {
+      statutorySnapshot: serializeBigInts(liveConfig) as object,
+    },
+  });
+  return liveConfig;
 }
 
 /** Reverse an approved/paid run back to draft and regenerate payslips. */
@@ -303,6 +344,8 @@ export async function reverseAndRegeneratePayrollRun(
   runId: string,
   companyId: string
 ) {
+  await ensurePayrollHardeningSchema();
+
   const run = await prisma.payrollRun.findFirst({
     where: { id: runId, companyId },
   });
@@ -330,5 +373,112 @@ export async function reverseAndRegeneratePayrollRun(
     },
   });
 
-  return recalculatePayrollRun(run.id, companyId);
+  // Prefer the frozen snapshot from the original approved calculation
+  return recalculatePayrollRunWithConfigPreference(runId, companyId, true);
+}
+
+async function recalculatePayrollRunWithConfigPreference(
+  runId: string,
+  companyId: string,
+  preferSnapshot: boolean
+) {
+  // Temporarily load with snapshot preference by patching via a one-off path:
+  // recalculatePayrollRun always uses live; for reverse we rehydrate snapshot into liveConfig path.
+  if (!preferSnapshot) {
+    return recalculatePayrollRun(runId, companyId);
+  }
+
+  const { run, config } = await loadRunContext(runId, companyId, {
+    preferSnapshot: true,
+  });
+
+  if (run.status !== "DRAFT") {
+    throw new PayrollRunError(
+      "Can only recalculate draft payroll runs",
+      400
+    );
+  }
+
+  const unpaidLeaveMap = await getUnpaidLeaveMap(
+    companyId,
+    run.periodMonth,
+    run.periodYear
+  );
+  const manualAdjustments = adjustmentsByEmployee(run);
+
+  const employees = await prisma.employee.findMany({
+    where: { companyId, status: "ACTIVE" },
+  });
+
+  const processedEmployeeIds: string[] = [];
+
+  for (const employee of employees) {
+    const leaveAdj = buildLeaveAdjustments(
+      employee,
+      unpaidLeaveMap.get(employee.id) ?? 0,
+      config.workingDaysPerMonth
+    );
+    const manualAdj = manualAdjustments.get(employee.id) ?? {};
+    const adjustments = mergeAdjustments(leaveAdj, manualAdj);
+
+    const breakdown = calculatePayroll(
+      {
+        basicSalaryKobo: employee.basicSalaryKobo,
+        housingAllowanceKobo: employee.housingAllowanceKobo,
+        transportAllowanceKobo: employee.transportAllowanceKobo,
+        otherTaxableAllowancesKobo: employee.otherTaxableAllowancesKobo,
+        nonTaxableReimbursementsKobo: employee.nonTaxableReimbursementsKobo,
+        annualRentKobo: employee.annualRentKobo,
+      },
+      config,
+      { month: run.periodMonth, year: run.periodYear },
+      adjustments
+    );
+
+    const ytd = await computeYtd(
+      employee.id,
+      companyId,
+      run.periodYear,
+      run.periodMonth,
+      breakdown.earnings.grossPayKobo,
+      breakdown.deductions.payeKobo,
+      breakdown.netPayKobo
+    );
+
+    const payslipData = payslipDataFromBreakdown(
+      run.id,
+      employee.id,
+      breakdown,
+      ytd
+    );
+
+    await prisma.payslip.upsert({
+      where: {
+        payrollRunId_employeeId: {
+          payrollRunId: run.id,
+          employeeId: employee.id,
+        },
+      },
+      create: payslipData,
+      update: payslipData,
+    });
+
+    processedEmployeeIds.push(employee.id);
+  }
+
+  await prisma.payslip.deleteMany({
+    where: {
+      payrollRunId: run.id,
+      employeeId: { notIn: processedEmployeeIds },
+    },
+  });
+
+  await prisma.payrollRun.update({
+    where: { id: run.id },
+    data: {
+      statutorySnapshot: serializeBigInts(config) as object,
+    },
+  });
+
+  return { employeeCount: processedEmployeeIds.length };
 }

@@ -24,6 +24,7 @@ interface SettingsData {
     taxFreeThresholdNaira: number;
     minimumWageExemptNaira: number;
     rentReliefCapNaira: number;
+    workingDaysPerMonth?: number;
   } | null;
   taxBands: TaxBandForm[];
 }
@@ -69,6 +70,7 @@ export function SettingsForm() {
         taxFreeThresholdNaira: Number(form.get("taxFreeThresholdNaira")),
         minimumWageExemptNaira: Number(form.get("minimumWageExemptNaira")),
         rentReliefCapNaira: Number(form.get("rentReliefCapNaira")),
+        workingDaysPerMonth: Number(form.get("workingDaysPerMonth")),
         taxBands: data.taxBands,
       }),
     });
@@ -118,6 +120,7 @@ export function SettingsForm() {
     taxFreeThresholdNaira: 800_000,
     minimumWageExemptNaira: 840_000,
     rentReliefCapNaira: 500_000,
+    workingDaysPerMonth: 22,
   };
 
   return (
@@ -189,12 +192,14 @@ export function SettingsForm() {
               defaultValue={s.taxReliefMode}
               className="mt-1 flex h-9 w-full rounded-md border border-stone-300 px-3 text-sm"
             >
-              <option value="NTA2025">NTA 2025 (tax-free threshold)</option>
+              <option value="NTA2025">NTA 2025 (0% band + rent relief)</option>
               <option value="CRA">Legacy CRA</option>
             </select>
           </div>
           <div>
-            <Label htmlFor="taxFreeThresholdNaira">Tax-free threshold (₦/year)</Label>
+            <Label htmlFor="taxFreeThresholdNaira">
+              CRA tax-free threshold (₦/year)
+            </Label>
             <Input
               id="taxFreeThresholdNaira"
               name="taxFreeThresholdNaira"
@@ -202,6 +207,10 @@ export function SettingsForm() {
               defaultValue={s.taxFreeThresholdNaira}
               className="mt-1"
             />
+            <p className="mt-1 text-xs text-stone-500">
+              Used only in CRA relief mode. Under NTA 2025, the ₦800k personal
+              allowance is the 0% tax band — not stacked as extra relief.
+            </p>
           </div>
           <div>
             <Label htmlFor="minimumWageExemptNaira">Min wage exempt (₦/year)</Label>
@@ -222,6 +231,24 @@ export function SettingsForm() {
               defaultValue={s.rentReliefCapNaira}
               className="mt-1"
             />
+          </div>
+          <div>
+            <Label htmlFor="workingDaysPerMonth">
+              Working days / month (daily rate)
+            </Label>
+            <Input
+              id="workingDaysPerMonth"
+              name="workingDaysPerMonth"
+              type="number"
+              min={1}
+              max={31}
+              defaultValue={s.workingDaysPerMonth ?? 22}
+              className="mt-1"
+            />
+            <p className="mt-1 text-xs text-stone-500">
+              Used for unpaid leave and attendance daily-rate deductions. Not a
+              hard-coded 22 for every company.
+            </p>
           </div>
         </CardContent>
       </Card>

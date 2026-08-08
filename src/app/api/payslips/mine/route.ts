@@ -1,43 +1,19 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { requireAuth, handleApiError, AuthError } from "@/lib/api-auth";
-import { serializeBigInts } from "@/lib/payroll/config-mapper";
+import { requireAuth, handleApiError } from "@/lib/api-auth";
 
+/**
+ * Employee self-service payslips are retired.
+ * OmniPeople is HR/Admin only — employees are managed records, not users.
+ */
 export async function GET() {
   try {
-    const session = await requireAuth();
-
-    if (!session.user.employeeId) {
-      throw new AuthError("Employee account required", 403);
-    }
-
-    const payslips = await prisma.payslip.findMany({
-      where: {
-        employeeId: session.user.employeeId,
-        payrollRun: {
-          companyId: session.user.companyId,
-          status: { in: ["APPROVED", "PAID"] },
-        },
-      },
-      include: {
-        payrollRun: {
-          select: { periodMonth: true, periodYear: true, status: true },
-        },
-      },
-      orderBy: [
-        { payrollRun: { periodYear: "desc" } },
-        { payrollRun: { periodMonth: "desc" } },
-      ],
-    });
-
+    await requireAuth();
     return NextResponse.json(
-      serializeBigInts(
-        payslips.map((p) => ({
-          ...p,
-          grossPayKobo: p.grossPayKobo.toString(),
-          netPayKobo: p.netPayKobo.toString(),
-        }))
-      )
+      {
+        error:
+          "Employee self-service payslips are not available. Use Payroll → payslips as HR or Super Admin.",
+      },
+      { status: 410 }
     );
   } catch (error) {
     return handleApiError(error);

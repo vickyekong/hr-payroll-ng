@@ -12,8 +12,8 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const bodySchema = z.object({
-  /** Re-compile clock attendance and refresh missed-shift deductions (default true). */
-  syncAttendance: z.boolean().optional().default(true),
+  /** Re-compile clock attendance and refresh missed-shift deductions (default false — HR must opt in). */
+  syncAttendance: z.boolean().optional().default(false),
 });
 
 export async function POST(
@@ -22,12 +22,12 @@ export async function POST(
 ) {
   try {
     const session = await requirePermission("runPayroll");
-    let syncAttendance = true;
+    let syncAttendance = false;
     try {
       const json = await req.json();
-      syncAttendance = bodySchema.parse(json ?? {}).syncAttendance ?? true;
+      syncAttendance = bodySchema.parse(json ?? {}).syncAttendance ?? false;
     } catch {
-      // empty body is fine — default sync on
+      // empty body is fine — default sync off
     }
 
     let attendance: Awaited<ReturnType<typeof syncAttendanceIntoPayroll>> | null =

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import type { StatutoryConfig } from "@prisma/client";
 import { requirePermission, handleApiError } from "@/lib/api-auth";
 import { nairaToKobo } from "@/lib/money";
+import { ensurePayrollHardeningSchema } from "@/lib/ensure-payroll-hardening-schema";
 import { z } from "zod";
 
 const taxBandSchema = z.object({
@@ -21,10 +22,17 @@ const updateSchema = z.object({
   taxFreeThresholdNaira: z.number().min(0).optional(),
   minimumWageExemptNaira: z.number().min(0).optional(),
   rentReliefCapNaira: z.number().min(0).optional(),
+  workingDaysPerMonth: z.number().min(1).max(31).optional(),
   taxBands: z.array(taxBandSchema).min(1).optional(),
 });
 
 function serializeConfig(config: StatutoryConfig) {
+  const workingDays =
+    "workingDaysPerMonth" in config &&
+    typeof (config as { workingDaysPerMonth?: number }).workingDaysPerMonth ===
+      "number"
+      ? (config as { workingDaysPerMonth: number }).workingDaysPerMonth
+      : 22;
   return {
     pensionEmployeeRate: config.pensionEmployeeRate / 100,
     pensionEmployerRate: config.pensionEmployerRate / 100,
@@ -35,6 +43,7 @@ function serializeConfig(config: StatutoryConfig) {
     taxFreeThresholdNaira: Number(config.taxFreeThresholdKobo) / 100,
     minimumWageExemptNaira: Number(config.minimumWageExemptKobo) / 100,
     rentReliefCapNaira: Number(config.rentReliefCapKobo) / 100,
+    workingDaysPerMonth: workingDays,
   };
 }
 
@@ -51,6 +60,7 @@ async function loadSettings(companyId: string) {
 export async function GET() {
   try {
     const session = await requirePermission("manageStatutoryRates");
+    await ensurePayrollHardeningSchema();
     const company = await loadSettings(session.user.companyId);
     if (!company) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 });
@@ -79,6 +89,7 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   try {
     const session = await requirePermission("manageStatutoryRates");
+    await ensurePayrollHardeningSchema();
     const body = updateSchema.parse(await req.json());
 
     const company = await loadSettings(session.user.companyId);
@@ -111,6 +122,9 @@ export async function PATCH(req: NextRequest) {
       }),
       ...(body.rentReliefCapNaira !== undefined && {
         rentReliefCapKobo: nairaToKobo(body.rentReliefCapNaira),
+      }),
+      ...(body.workingDaysPerMonth !== undefined && {
+        workingDaysPerMonth: Math.floor(body.workingDaysPerMonth),
       }),
     };
 

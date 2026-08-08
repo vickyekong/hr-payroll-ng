@@ -8,7 +8,11 @@ import {
   endOfWeek,
 } from "date-fns";
 import { prisma } from "@/lib/db";
-import { getDailyRateFromMonthly } from "@/lib/payroll/calculate-payroll";
+import {
+  DEFAULT_WORKING_DAYS_PER_MONTH,
+  getDailyRateFromMonthly,
+} from "@/lib/payroll/calculate-payroll";
+import { ensurePayrollHardeningSchema } from "@/lib/ensure-payroll-hardening-schema";
 import {
   combineDateAndTime,
   compileAttendanceStatus,
@@ -39,7 +43,27 @@ function chunkArray<T>(items: T[], size: number): T[][] {
   return out;
 }
 
-export { deviceMatchKeys };
+async function companyWorkingDays(companyId: string): Promise<number> {
+  await ensurePayrollHardeningSchema();
+  const config = await prisma.statutoryConfig.findUnique({
+    where: { companyId },
+    select: { workingDaysPerMonth: true } as { workingDaysPerMonth: true },
+  }).catch(async () => {
+    // Column may not be in generated client yet — raw fallback
+    const rows = await prisma.$queryRawUnsafe<Array<{ workingDaysPerMonth: number }>>(
+      `SELECT "workingDaysPerMonth" FROM "StatutoryConfig" WHERE "companyId" = $1 LIMIT 1`,
+      companyId
+    );
+    return rows[0] ?? null;
+  });
+  const days =
+    config &&
+    typeof (config as { workingDaysPerMonth?: number }).workingDaysPerMonth ===
+      "number"
+      ? (config as { workingDaysPerMonth: number }).workingDaysPerMonth
+      : DEFAULT_WORKING_DAYS_PER_MONTH;
+  return Math.max(1, days);
+}
 
 /** Monday–Sunday week containing the given date (local). */
 export function weekBounds(anchor: Date): { start: Date; end: Date } {
@@ -456,6 +480,7 @@ export async function importAttendanceSheetDays(options: {
   const records: DayRecord[] = [];
   const now = new Date();
   const seen = new Set<string>();
+  const workingDays = await companyWorkingDays(options.companyId);
 
   for (const [name, days] of byName) {
     const employeeId = matchedNameToId.get(name);
@@ -480,7 +505,7 @@ export async function importAttendanceSheetDays(options: {
         penaltyKobo =
           settings.missedShiftPenaltyKobo > 0n
             ? settings.missedShiftPenaltyKobo
-            : getDailyRateFromMonthly(emp.basicSalaryKobo);
+            : getDailyRateFromMonthly(emp.basicSalaryKobo, workingDays);
       }
 
       let workedMinutes = 0;
@@ -607,6 +632,8 @@ export async function compileAttendancePeriod(options: {
   if (periodEnd < periodStart) {
     throw new Error("periodEnd must be on or after periodStart");
   }
+
+  const workingDays = await companyWorkingDays(options.companyId);
 
   const [settings, employees, punches, leaveRequests, sheetDays] =
     await Promise.all([
@@ -776,7 +803,10 @@ export async function compileAttendancePeriod(options: {
           if (settings.missedShiftPenaltyKobo > 0n) {
             penaltyKobo = settings.missedShiftPenaltyKobo;
           } else {
-            penaltyKobo = getDailyRateFromMonthly(employee.basicSalaryKobo);
+            penaltyKobo = getDailyRateFromMonthly(
+              employee.basicSalaryKobo,
+              workingDays
+            );
           }
           penaltyTotalKobo += penaltyKobo;
         }

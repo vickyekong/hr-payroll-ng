@@ -16,8 +16,8 @@ const createSchema = z.object({
   periodMonth: z.number().min(1).max(12),
   periodYear: z.number().min(2020),
   notes: z.string().optional(),
-  /** Default true — compile clock data and deduct missed shifts from salaries. */
-  applyAttendancePenalties: z.boolean().optional().default(true),
+  /** Default false — attendance deductions require explicit HR sync/confirm. */
+  applyAttendancePenalties: z.boolean().optional().default(false),
 });
 
 export async function GET() {

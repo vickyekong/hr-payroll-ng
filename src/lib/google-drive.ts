@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { buildStaffExportCsv } from "@/lib/exports/staff";
 import { buildPayrollExportCsv } from "@/lib/exports/payroll";
 import { buildCsv, formatNairaFromKobo } from "@/lib/reports/csv";
+import { decryptSecret, encryptSecret } from "@/lib/crypto/secrets";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
@@ -70,7 +71,7 @@ export async function exchangeGoogleCode(code: string) {
   const me = await oauth2.userinfo.get();
 
   return {
-    refreshToken: tokens.refresh_token,
+    refreshToken: encryptSecret(tokens.refresh_token),
     email: me.data.email ?? null,
   };
 }
@@ -86,7 +87,9 @@ async function getAuthorizedClient(companyId: string) {
   }
 
   const client = getGoogleOAuthClient();
-  client.setCredentials({ refresh_token: integration.refreshToken });
+  client.setCredentials({
+    refresh_token: decryptSecret(integration.refreshToken),
+  });
   return { client, integration };
 }
 

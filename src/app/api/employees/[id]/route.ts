@@ -106,6 +106,23 @@ export async function PATCH(
       throw new AuthError("Forbidden: compensation edits require manageCompensation", 403);
     }
 
+    const sensitiveStatutory = [
+      body.bankName,
+      body.bankAccountNumber,
+      body.tin,
+      body.rsaPin,
+      body.nhfNumber,
+    ];
+    if (
+      sensitiveStatutory.some((v) => v !== undefined) &&
+      session.user.role !== "SUPER_ADMIN"
+    ) {
+      throw new AuthError(
+        "Bank details, TIN, RSA PIN, and NHF number require Super Admin clearance. Submit a change request from HR Ask for review.",
+        403
+      );
+    }
+
     const existing = await prisma.employee.findFirst({
       where: { id: params.id, companyId: session.user.companyId },
     });

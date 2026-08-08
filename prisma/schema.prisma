@@ -134,6 +134,8 @@ model StatutoryConfig {
   craGrossPercentBps    Int     @default(2000)     // 20% of gross
   rentReliefCapKobo     BigInt  @default(50000000) // ₦500,000
   minimumWageExemptKobo BigInt  @default(84000000) // ₦840,000 annual (₦70k/month)
+  /// Payable working days used for unpaid leave / attendance daily rates
+  workingDaysPerMonth   Int     @default(22)
 
   updatedAt             DateTime @updatedAt
 }
@@ -255,6 +257,8 @@ model PayrollRun {
   approvedAt  DateTime?
   paidAt      DateTime?
   notes       String?
+  /// Snapshot of statutory rates + tax bands used when this run was calculated/approved
+  statutorySnapshot Json?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 

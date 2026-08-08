@@ -24,11 +24,13 @@ export function calculateTaxRelief(
   annualRentKobo: Kobo = 0n
 ): Kobo {
   if (config.taxReliefMode === "NTA2025") {
-    const rentRelief = calculateAnnualRentRelief(
+    // Under NTA 2025 the ₦800k personal allowance is the 0% tax band,
+    // not a separate CRA-style deduction on top of that band.
+    // Only rent relief is subtracted before progressive bands apply.
+    return calculateAnnualRentRelief(
       annualRentKobo,
       config.rentReliefCapKobo
     );
-    return config.taxFreeThresholdKobo + rentRelief;
   }
 
   // Legacy CRA: higher of fixed or 1% of gross, plus 20% of gross
