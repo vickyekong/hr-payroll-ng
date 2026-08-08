@@ -146,12 +146,6 @@ export function LandingPage() {
           aria-hidden
           className="animate-lagoon-breathe pointer-events-none absolute -right-24 top-1/4 h-[420px] w-[420px] rounded-full bg-lagoon/20 blur-3xl"
         />
-        {/* Ambient Lottie wash — creative depth behind hero copy */}
-        <LandingLottie
-          src="/lottie/salary-truth.json"
-          className="pointer-events-none absolute -right-8 top-8 h-[520px] w-[520px] opacity-40 sm:opacity-50 lg:right-0 lg:top-1/2 lg:h-[640px] lg:w-[640px] lg:-translate-y-1/2 lg:opacity-60"
-          speed={0.85}
-        />
 
         <div className="relative z-10 mx-auto grid min-h-[calc(100dvh-4.5rem)] max-w-6xl items-center gap-12 px-5 pb-20 pt-8 sm:px-8 sm:pb-24 lg:grid-cols-12 lg:gap-10 lg:px-12 lg:pb-28">
           <div className="animate-soft-rise lg:col-span-6 xl:col-span-7">
@@ -184,8 +178,8 @@ export function LandingPage() {
           >
             <div className="relative">
               <LandingLottie
-                src="/lottie/command-center.json"
-                className="mx-auto mb-2 h-40 w-40 sm:h-48 sm:w-48 lg:absolute lg:-right-4 lg:-top-28 lg:mb-0 lg:h-56 lg:w-56 lg:opacity-90"
+                src="/lottie/salary-truth.json"
+                className="mx-auto mb-4 h-44 w-44 sm:h-52 sm:w-52 lg:absolute lg:-right-2 lg:-top-36 lg:mb-0 lg:h-56 lg:w-56"
                 speed={0.9}
               />
               <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-lagoon-mist/55">
