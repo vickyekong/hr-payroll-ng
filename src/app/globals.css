@@ -77,6 +77,10 @@ body {
   .animate-soft-rise {
     animation: soft-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
+
+  .animate-lagoon-breathe {
+    animation: lagoon-breathe 8s ease-in-out infinite;
+  }
 }
 
 @keyframes fade-up {
@@ -110,10 +114,23 @@ body {
   }
 }
 
+@keyframes lagoon-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-fade-in,
-  .animate-soft-rise {
+  .animate-soft-rise,
+  .animate-lagoon-breathe {
     animation: none;
   }
 }

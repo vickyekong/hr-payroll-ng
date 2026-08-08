@@ -92,6 +92,30 @@ File: `src/app/login/page.tsx`
 
 ---
 
+### Marketing landing
+
+File: `src/components/marketing/landing-page.tsx`
+Last updated: 2026-08-08
+
+| Property | Class |
+| -------- | ----- |
+| Page shell | `bg-ink text-foam` |
+| Hero atmosphere | `.bg-login-atmosphere` + lagoon breathe orb |
+| Brand (hero) | `font-display text-5xl…7xl text-foam` |
+| Supporting promise | `text-xl/2xl text-lagoon-mist` |
+| Body muted (dark) | `text-lagoon-mist/75` |
+| Light sections | `bg-mist` / `bg-foam` / `.bg-atmosphere` + `text-ink` |
+| Section eyebrow | `text-[11px] uppercase tracking-[0.2em] text-lagoon` |
+| Section H2 | `font-display text-3xl/4xl font-semibold` |
+| Primary CTA | `bg-lagoon text-foam hover:bg-lagoon-deep rounded-lg h-11` |
+| Outline CTA (dark) | `border-white/25 bg-white/5 text-foam` |
+| Motion | `.animate-soft-rise`, `.animate-fade-up`, `.animate-lagoon-breathe` |
+| Dividers | `border-line` (light) / `border-white/10–15` (dark) |
+
+**Pattern notes:** Hero is one composition — product name is the H1; salary-truth numbers sit in the atmosphere without card chrome. Hard `<a href>` for auth CTAs. Feature sell uses numbered pillars + capability lists, not card grids.
+
+---
+
 ### Command center cards
 
 File: `src/components/dashboard/command-center.tsx`
