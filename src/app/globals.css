@@ -144,17 +144,38 @@ body {
     background-image: linear-gradient(
       to bottom,
       transparent 0%,
-      rgb(var(--mist) / 0.35) 55%,
+      rgb(var(--mist) / 0.15) 40%,
+      rgb(var(--mist) / 0.55) 72%,
       rgb(var(--mist)) 100%
     );
   }
 
-  .landing-fade-from-ink {
+  /* Continuous bridge: no solid ink bar — soft wash into mist */
+  .landing-tagline-bridge {
+    background-color: rgb(var(--mist));
     background-image: linear-gradient(
       to bottom,
-      rgb(var(--ink)) 0%,
-      rgb(var(--ink-soft)) 40%,
+      rgb(var(--ink-soft) / 0.45) 0%,
+      rgb(var(--mist) / 0.85) 38%,
       rgb(var(--mist)) 100%
+    );
+  }
+
+  .landing-plus-field-bridge {
+    background-image: url("data:image/svg+xml,%3Csvg width='72' height='72' viewBox='0 0 72 72' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%230b2e33' fill-opacity='0.35'%3E%3Cpath d='M38 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM38 4V0h-2v4h-4v2h4v4h2V6h4V4h-4zM8 34v-4H6v4H2v2h4v4h2v-4h4v-2H8zM8 4V0H6v4H2v2h4v4h2V6h4V4H8z'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 72px 72px;
+    opacity: 0.2;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.55) 0%,
+      rgba(0, 0, 0, 0.2) 55%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.55) 0%,
+      rgba(0, 0, 0, 0.2) 55%,
+      transparent 100%
     );
   }
 

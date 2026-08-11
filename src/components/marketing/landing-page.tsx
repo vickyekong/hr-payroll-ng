@@ -238,27 +238,27 @@ export function LandingPage() {
           </div>
         </div>
 
-        {/* Soft handoff into light content */}
+        {/* Soft handoff into light content — no hard bar */}
         <div
           aria-hidden
-          className="landing-fade-to-mist pointer-events-none absolute inset-x-0 bottom-0 h-28"
+          className="landing-fade-to-mist pointer-events-none absolute inset-x-0 bottom-0 h-36 sm:h-44"
         />
       </section>
 
-      {/* Tagline bridge — ink → mist blend */}
-      <section className="relative overflow-hidden bg-mist px-5 py-14 text-ink sm:px-8 sm:py-16 lg:px-12">
+      {/* Tagline bridge — continuous ink→mist wash */}
+      <section className="landing-tagline-bridge relative overflow-hidden px-5 py-12 text-ink sm:px-8 sm:py-14 lg:px-12">
         <div
           aria-hidden
-          className="landing-fade-from-ink pointer-events-none absolute inset-x-0 top-0 h-20"
+          className="landing-plus-field-bridge pointer-events-none absolute inset-0"
         />
         <LandingLottie
           src="/lottie/flow-spark.json"
-          className="pointer-events-none absolute left-2 top-1/2 h-20 w-20 -translate-y-1/2 opacity-25 sm:left-8 sm:h-24 sm:w-24"
+          className="pointer-events-none absolute left-2 top-1/2 h-16 w-16 -translate-y-1/2 opacity-20 sm:left-8 sm:h-20 sm:w-20"
           speed={1.1}
         />
         <LandingLottie
           src="/lottie/flow-spark.json"
-          className="pointer-events-none absolute right-2 top-1/2 h-20 w-20 -translate-y-1/2 opacity-25 sm:right-8 sm:h-24 sm:w-24"
+          className="pointer-events-none absolute right-2 top-1/2 h-16 w-16 -translate-y-1/2 opacity-20 sm:right-8 sm:h-20 sm:w-20"
           speed={0.95}
         />
         <p className="relative z-10 mx-auto max-w-3xl text-center text-lg font-medium leading-relaxed text-ink-soft sm:text-xl">
