@@ -74,6 +74,7 @@ model Company {
   payrollRuns           PayrollRun[]
   taxBands              TaxBand[]
   googleDriveIntegration GoogleDriveIntegration?
+  microsoftWorkspaceIntegration MicrosoftWorkspaceIntegration?
   notifications         Notification[]
   shiftTemplates        ShiftTemplate[]
   attendanceSettings    AttendanceSettings?
@@ -396,6 +397,21 @@ model GoogleDriveIntegration {
   lastStaffSyncAt      DateTime?
   lastPayrollSyncAt    DateTime?
   lastHrMailSyncAt     DateTime?
+  connectedAt          DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model MicrosoftWorkspaceIntegration {
+  id                   String   @id @default(cuid())
+  companyId            String   @unique
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  refreshToken         String
+  email                String?
+  folderId             String?
+  staffSpreadsheetId   String?
+  payrollSpreadsheetId String?
+  lastStaffSyncAt      DateTime?
+  lastPayrollSyncAt    DateTime?
   connectedAt          DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }

@@ -84,6 +84,24 @@ Setup:
 
 On Employees / Payroll pages you can also **Sync Sheet** or **Save file to Drive**.
 
+### Microsoft 365 / OneDrive sync
+
+Same company workflow as Google, using Microsoft Graph + OneDrive:
+
+- Folder tree: `OmniPeople / Staff`, `Payroll`, `Exports`
+- **Staff Database** and **Payroll Database** Excel workbooks (`.xlsx`)
+- CSV snapshots can be uploaded to **Exports**
+
+Setup:
+
+1. Azure Portal → **App registrations** → New registration (accounts in any org / personal as needed)
+2. Add Web redirect URI:
+   `https://hr-payroll-ng.vercel.app/api/integrations/microsoft-workspace/callback`
+3. API permissions (delegated): `User.Read`, `Files.ReadWrite`, `offline_access`
+4. Create a **client secret**
+5. Set `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` (optional `MICROSOFT_TENANT_ID`) in Vercel → redeploy
+6. Super Admin → **Settings** → **Connect Microsoft 365** → **Sync staff + payroll now**
+
 After connecting the repo:
 
 1. Add the env vars above in Vercel.

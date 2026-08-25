@@ -6,6 +6,7 @@ import { can } from "@/lib/permissions";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { BrandingSettingsForm } from "@/components/settings/branding-settings-form";
 import { GoogleDriveSettings } from "@/components/settings/google-drive-settings";
+import { MicrosoftWorkspaceSettings } from "@/components/settings/microsoft-workspace-settings";
 import { TeamInviteForm } from "@/components/settings/team-invite-form";
 import { Suspense } from "react";
 
@@ -24,8 +25,8 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold text-ink">Settings</h1>
         <p className="mt-1 text-sm text-muted">
           {canEditStatutory
-            ? "Company branding, team, statutory rates, and Google Workspace sync"
-            : "Company branding and Google Workspace sync — statutory rates are Super Admin only"}
+            ? "Company branding, team, statutory rates, and Google / Microsoft workspace sync"
+            : "Company branding and workspace sync — statutory rates are Super Admin only"}
         </p>
       </div>
       <BrandingSettingsForm />
@@ -33,6 +34,9 @@ export default async function SettingsPage() {
       {canEditStatutory && <SettingsForm />}
       <Suspense fallback={null}>
         <GoogleDriveSettings />
+      </Suspense>
+      <Suspense fallback={null}>
+        <MicrosoftWorkspaceSettings />
       </Suspense>
     </AppShell>
   );

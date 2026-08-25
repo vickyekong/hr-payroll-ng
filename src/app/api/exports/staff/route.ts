@@ -3,11 +3,14 @@ import { requirePermission, handleApiError } from "@/lib/api-auth";
 import { buildStaffExportCsv } from "@/lib/exports/staff";
 import { csvResponse } from "@/lib/reports/csv";
 import { uploadCsvToGoogleDrive } from "@/lib/google-drive";
+import { uploadCsvToMicrosoftOneDrive } from "@/lib/microsoft-workspace";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 const bodySchema = z.object({
-  destination: z.enum(["download", "google_drive"]).default("download"),
+  destination: z
+    .enum(["download", "google_drive", "microsoft_onedrive"])
+    .default("download"),
 });
 
 export async function GET() {
@@ -32,16 +35,26 @@ export async function POST(req: NextRequest) {
       return csvResponse(csv, filename);
     }
 
-    const uploaded = await uploadCsvToGoogleDrive({
-      companyId: session.user.companyId,
-      filename,
-      csv,
-    });
+    const uploaded =
+      body.destination === "microsoft_onedrive"
+        ? await uploadCsvToMicrosoftOneDrive({
+            companyId: session.user.companyId,
+            filename,
+            csv,
+          })
+        : await uploadCsvToGoogleDrive({
+            companyId: session.user.companyId,
+            filename,
+            csv,
+          });
 
     await prisma.auditLog.create({
       data: {
         companyId: session.user.companyId,
-        action: "EXPORT_GOOGLE_DRIVE",
+        action:
+          body.destination === "microsoft_onedrive"
+            ? "EXPORT_MICROSOFT_ONEDRIVE"
+            : "EXPORT_GOOGLE_DRIVE",
         entityType: "Employee",
         entityId: session.user.companyId,
         performedById: session.user.id,
