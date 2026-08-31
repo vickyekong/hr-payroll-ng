@@ -1,8 +1,8 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import type { UserRole } from "@prisma/client";
+import { checkPortalCredentials } from "@/lib/auth/account";
 
 declare module "next-auth" {
   interface Session {
@@ -43,24 +43,24 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        totp: { label: "2FA code", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        const check = await checkPortalCredentials(
+          credentials.email,
+          credentials.password,
+          credentials.totp
+        );
+
+        if (check.status !== "ok") return null;
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email.toLowerCase() },
         });
 
         if (!user) return null;
-
-        // Two portals only: Super Admin + HR. Staff and legacy Finance logins blocked.
-        if (user.role === "EMPLOYEE" || user.role === "FINANCE") return null;
-
-        const valid = await bcrypt.compare(
-          credentials.password,
-          user.passwordHash
-        );
-        if (!valid) return null;
 
         return {
           id: user.id,

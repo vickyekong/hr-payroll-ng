@@ -55,7 +55,6 @@ export default function OnboardingPage() {
   const [ink, setInk] = useState(DEFAULT_BRAND_INK);
   const [hrName, setHrName] = useState("");
   const [hrEmail, setHrEmail] = useState("");
-  const [hrPassword, setHrPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -113,7 +112,6 @@ export default function OnboardingPage() {
       body: JSON.stringify({
         name: hrName,
         email: hrEmail,
-        password: hrPassword,
         role: "HR_ADMIN",
       }),
     });
@@ -158,7 +156,7 @@ export default function OnboardingPage() {
         <p className="mt-2 text-sm text-muted">
           {step === 1
             ? "Company name, logo, and colours appear on payslips and the app shell."
-            : "Optional — you can invite HR later from Settings. Share the password securely."}
+            : "Optional — we email HR an invite link to set their password."}
         </p>
 
         <div className="mt-4 flex gap-2">
@@ -320,28 +318,13 @@ export default function OnboardingPage() {
                     required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="hrPassword">Temporary password</Label>
-                  <Input
-                    id="hrPassword"
-                    type="password"
-                    value={hrPassword}
-                    onChange={(e) => setHrPassword(e.target.value)}
-                    className="mt-1"
-                    required
-                    minLength={8}
-                  />
-                  <p className="mt-1 text-xs text-muted">
-                    They sign in at /login with this email and password.
-                  </p>
-                </div>
               </>
             )}
             {message && <p className="text-sm text-signal">{message}</p>}
             <div className="flex flex-wrap gap-2 pt-2">
               {isSuperAdmin && (
                 <Button type="submit" variant="brand" disabled={loading}>
-                  {loading ? "Inviting…" : "Invite HR & open app"}
+                  {loading ? "Sending invite…" : "Invite HR & open app"}
                 </Button>
               )}
               <Button type="button" variant="outline" onClick={finish}>

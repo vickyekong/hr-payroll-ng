@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,12 +16,14 @@ export default function SignupPage() {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
 
     const res = await fetch("/api/signup", {
       method: "POST",
@@ -36,28 +37,17 @@ export default function SignupPage() {
       }),
     });
     const data = await res.json().catch(() => ({}));
+    setLoading(false);
+
     if (!res.ok) {
-      setLoading(false);
       setError(data.error ?? "Could not create company");
       return;
     }
 
-    const result = await signIn("credentials", {
-      email: adminEmail,
-      password: adminPassword,
-      redirect: false,
-    });
-
-    setLoading(false);
-    if (result?.error) {
-      setError(
-        "Company created, but sign-in failed. Use your email on the login page."
-      );
-      return;
-    }
-
-    router.push("/onboarding");
-    router.refresh();
+    setSuccess(data.message);
+    router.push(
+      `/verify-email?email=${encodeURIComponent(adminEmail)}`
+    );
   }
 
   return (
@@ -92,7 +82,8 @@ export default function SignupPage() {
           >
             <p className="text-sm font-medium text-ink">Company signup</p>
             <p className="mt-1 text-xs text-muted">
-              Not the login form — this creates a new tenant with NTA 2025 defaults
+              Creates a new tenant with NTA 2025 defaults. You&apos;ll verify your
+              email before signing in.
             </p>
 
             <div className="mt-5 space-y-4">
@@ -161,6 +152,7 @@ export default function SignupPage() {
               </div>
 
               {error && <p className="text-sm text-signal">{error}</p>}
+              {success && <p className="text-sm text-muted">{success}</p>}
 
               <Button
                 type="submit"

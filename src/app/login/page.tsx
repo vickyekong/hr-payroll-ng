@@ -2,33 +2,75 @@
 
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/brand";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totp, setTotp] = useState("");
+  const [needsTotp, setNeedsTotp] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const resetBanner = searchParams.get("reset") === "1";
+  const invitedBanner = searchParams.get("invited") === "1";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    const result = await signIn("credentials", {
+    const check = await fetch("/api/auth/check-credentials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, totp: needsTotp ? totp : undefined }),
+    });
+    const checkData = await check.json().catch(() => ({}));
+    const result = checkData.result as
+      | { status: string; email?: string }
+      | undefined;
+
+    if (result?.status === "email_not_verified") {
+      setLoading(false);
+      setError(
+        "Verify your email before signing in. Check your inbox or resend from the verification page."
+      );
+      return;
+    }
+    if (result?.status === "totp_required") {
+      setLoading(false);
+      setNeedsTotp(true);
+      setError("Enter the 6-digit code from your authenticator app.");
+      return;
+    }
+    if (result?.status === "invalid_totp") {
+      setLoading(false);
+      setNeedsTotp(true);
+      setError("Invalid authenticator code.");
+      return;
+    }
+    if (result?.status === "invalid") {
+      setLoading(false);
+      setError("Invalid email or password");
+      return;
+    }
+
+    const signInResult = await signIn("credentials", {
       email,
       password,
+      totp: needsTotp ? totp : "",
       redirect: false,
     });
 
     setLoading(false);
-    if (result?.error) {
+    if (signInResult?.error) {
       setError("Invalid email or password");
       return;
     }
@@ -68,6 +110,16 @@ export default function LoginPage() {
             <p className="mt-1 text-xs text-muted">
               Super Admin or HR — same tools, clearance where it counts
             </p>
+            {resetBanner && (
+              <p className="mt-3 text-xs text-ok">
+                Password updated. Sign in with your new password.
+              </p>
+            )}
+            {invitedBanner && (
+              <p className="mt-3 text-xs text-ok">
+                Account created. Sign in with your new password.
+              </p>
+            )}
             <div className="mt-5 space-y-4">
               <div>
                 <Label htmlFor="email">Email</Label>
@@ -82,7 +134,15 @@ export default function LoginPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-lagoon underline underline-offset-2"
+                  >
+                    Forgot?
+                  </Link>
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -92,6 +152,20 @@ export default function LoginPage() {
                   required
                 />
               </div>
+              {needsTotp && (
+                <div>
+                  <Label htmlFor="totp">Authenticator code</Label>
+                  <Input
+                    id="totp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={totp}
+                    onChange={(e) => setTotp(e.target.value)}
+                    className="mt-1"
+                    required
+                  />
+                </div>
+              )}
               {error && <p className="text-sm text-signal">{error}</p>}
               <Button
                 type="submit"
@@ -115,5 +189,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-login-atmosphere" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

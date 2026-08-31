@@ -84,6 +84,7 @@ model Company {
   employeeLifecycles    EmployeeLifecycle[]
   changeRequests        EmployeeChangeRequest[]
   jobDescriptions       JobDescription[]
+  teamInvites           TeamInvite[]
 }
 
 model Department {
@@ -156,24 +157,73 @@ model TaxBand {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         UserRole
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employeeId   String?  @unique
-  employee     Employee? @relation(fields: [employeeId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  name            String
+  role            UserRole
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId      String?   @unique
+  employee        Employee? @relation(fields: [employeeId], references: [id])
+  emailVerifiedAt DateTime?
+  totpEnabled     Boolean   @default(false)
+  /// Encrypted TOTP secret (see lib/crypto/secrets)
+  totpSecret      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  payrollRunsCreated  PayrollRun[] @relation("CreatedBy")
-  payrollRunsApproved PayrollRun[] @relation("ApprovedBy")
-  leaveApprovals      LeaveRequest[] @relation("LeaveApprover")
-  auditLogs           AuditLog[]
-  notifications       Notification[]
-  hrDeskAssigned      HrDeskMessage[] @relation("HrDeskAssignee")
+  payrollRunsCreated       PayrollRun[]            @relation("CreatedBy")
+  payrollRunsApproved      PayrollRun[]            @relation("ApprovedBy")
+  leaveApprovals           LeaveRequest[]          @relation("LeaveApprover")
+  auditLogs                AuditLog[]
+  notifications            Notification[]
+  hrDeskAssigned           HrDeskMessage[]         @relation("HrDeskAssignee")
+  passwordResetTokens      PasswordResetToken[]
+  emailVerificationTokens  EmailVerificationToken[]
+  teamInvitesSent          TeamInvite[]            @relation("TeamInvitedBy")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model TeamInvite {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  email       String
+  name        String
+  role        UserRole
+  tokenHash   String    @unique
+  invitedById String
+  invitedBy   User      @relation("TeamInvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([companyId])
+  @@index([email])
 }
 
 model Employee {

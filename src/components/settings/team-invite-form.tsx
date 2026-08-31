@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export function TeamInviteForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [role, setRole] = useState<"HR_ADMIN" | "SUPER_ADMIN">("HR_ADMIN");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,7 +20,7 @@ export function TeamInviteForm() {
     const res = await fetch("/api/team/invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, role }),
+      body: JSON.stringify({ name, email, role }),
     });
     const data = await res.json().catch(() => ({}));
     setLoading(false);
@@ -30,13 +29,11 @@ export function TeamInviteForm() {
       return;
     }
     setMessage(
-      `Invited ${data.user?.name} (${data.user?.email}) as ${
-        role === "HR_ADMIN" ? "HR" : "Super Admin"
-      }. Share the password securely.`
+      data.message ??
+        `Invite sent to ${data.invite?.email}. They'll set their password from the email link.`
     );
     setName("");
     setEmail("");
-    setPassword("");
   }
 
   return (
@@ -44,8 +41,8 @@ export function TeamInviteForm() {
       <CardHeader>
         <CardTitle>Invite team</CardTitle>
         <p className="text-sm text-muted">
-          Super Admin only — create HR or another Super Admin for this company.
-          Demo Acme accounts are separate and unchanged.
+          Super Admin only — we email an invite link. Teammates choose their own
+          password when they accept.
         </p>
       </CardHeader>
       <CardContent>
@@ -72,19 +69,7 @@ export function TeamInviteForm() {
               required
             />
           </div>
-          <div>
-            <Label htmlFor="invite-password">Temporary password</Label>
-            <Input
-              id="invite-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1"
-              required
-              minLength={8}
-            />
-          </div>
-          <div>
+          <div className="sm:col-span-2 sm:max-w-xs">
             <Label htmlFor="invite-role">Role</Label>
             <select
               id="invite-role"
@@ -100,12 +85,14 @@ export function TeamInviteForm() {
           </div>
           <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
             <Button type="submit" variant="brand" disabled={loading}>
-              {loading ? "Inviting…" : "Invite"}
+              {loading ? "Sending…" : "Send invite"}
             </Button>
             {message && (
               <p
                 className={`text-sm ${
-                  message.startsWith("Invited") ? "text-muted" : "text-signal"
+                  message.toLowerCase().includes("sent")
+                    ? "text-muted"
+                    : "text-signal"
                 }`}
               >
                 {message}

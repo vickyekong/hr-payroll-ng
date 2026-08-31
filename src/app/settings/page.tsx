@@ -8,6 +8,7 @@ import { BrandingSettingsForm } from "@/components/settings/branding-settings-fo
 import { GoogleDriveSettings } from "@/components/settings/google-drive-settings";
 import { MicrosoftWorkspaceSettings } from "@/components/settings/microsoft-workspace-settings";
 import { TeamInviteForm } from "@/components/settings/team-invite-form";
+import { TwoFactorSettings } from "@/components/settings/two-factor-settings";
 import { Suspense } from "react";
 
 export default async function SettingsPage() {
@@ -30,6 +31,7 @@ export default async function SettingsPage() {
         </p>
       </div>
       <BrandingSettingsForm />
+      <TwoFactorSettings />
       {isSuperAdmin && <TeamInviteForm />}
       {canEditStatutory && <SettingsForm />}
       <Suspense fallback={null}>
