@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ExportActions } from "@/components/exports/export-actions";
+import { useWorkspaceConnections } from "@/components/exports/use-workspace-connections";
 import { getMonthName } from "@/lib/utils";
 
 interface PayrollRunOption {
@@ -19,7 +20,7 @@ export function PayrollExportPanel({
   runs: PayrollRunOption[];
 }) {
   const [selectedRunId, setSelectedRunId] = useState(runs[0]?.id ?? "");
-  const [driveConnected, setDriveConnected] = useState(false);
+  const connections = useWorkspaceConnections();
 
   useEffect(() => {
     if (!selectedRunId && runs[0]?.id) {
@@ -27,22 +28,13 @@ export function PayrollExportPanel({
     }
   }, [runs, selectedRunId]);
 
-  useEffect(() => {
-    fetch("/api/integrations/google-drive")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.connected) setDriveConnected(true);
-      })
-      .catch(() => undefined);
-  }, []);
-
   return (
     <Card className="mb-6">
       <CardHeader>
         <CardTitle>Export payroll</CardTitle>
         <p className="text-sm text-stone-500">
-          Download a CSV, save it to Google Drive, or sync the payroll Sheet for
-          the selected run.
+          Download CSV, or sync to Google Sheets / Microsoft Excel when
+          connected in Settings.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -71,7 +63,7 @@ export function PayrollExportPanel({
             <ExportActions
               kind="payroll"
               runId={selectedRunId}
-              driveConnected={driveConnected}
+              connections={connections}
             />
           </>
         )}

@@ -1,22 +1,33 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { WorkspaceConnections } from "@/components/exports/workspace-connections";
 
 interface ExportActionsProps {
   kind: "staff" | "payroll";
   runId?: string;
-  driveConnected?: boolean;
+  connections?: WorkspaceConnections;
 }
+
+type LoadingKey =
+  | "download"
+  | "google-drive"
+  | "google-sync"
+  | "microsoft-drive"
+  | "microsoft-sync"
+  | null;
 
 export function ExportActions({
   kind,
   runId,
-  driveConnected = false,
+  connections = { google: false, microsoft: false },
 }: ExportActionsProps) {
-  const [loading, setLoading] = useState<
-    "download" | "drive" | "sync" | null
-  >(null);
+  const [loading, setLoading] = useState<LoadingKey>(null);
+
+  const disabled = loading !== null || (kind === "payroll" && !runId);
+  const hasCloud = connections.google || connections.microsoft;
 
   async function download() {
     setLoading("download");
@@ -46,13 +57,24 @@ export function ExportActions({
     }
   }
 
-  async function uploadToDrive() {
-    if (!driveConnected) {
-      alert("Connect Google Workspace in Settings first.");
+  async function uploadCsv(provider: "google" | "microsoft") {
+    const connected =
+      provider === "google" ? connections.google : connections.microsoft;
+    if (!connected) {
+      alert(
+        provider === "google"
+          ? "Connect Google Workspace in Settings first."
+          : "Connect Microsoft 365 in Settings first."
+      );
       return;
     }
-    setLoading("drive");
+
+    const loadingKey: LoadingKey =
+      provider === "google" ? "google-drive" : "microsoft-drive";
+    setLoading(loadingKey);
     try {
+      const destination =
+        provider === "google" ? "google_drive" : "microsoft_onedrive";
       const res = await fetch(
         kind === "staff" ? "/api/exports/staff" : "/api/exports/payroll",
         {
@@ -60,54 +82,75 @@ export function ExportActions({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
             kind === "staff"
-              ? { destination: "google_drive" }
-              : { destination: "google_drive", runId }
+              ? { destination }
+              : { destination, runId }
           ),
         }
       );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Google Drive upload failed");
+      if (!res.ok) {
+        throw new Error(
+          data.error ??
+            (provider === "google"
+              ? "Google Drive upload failed"
+              : "OneDrive upload failed")
+        );
+      }
+      const label = provider === "google" ? "Google Drive" : "OneDrive";
       if (data.webViewLink) {
         const open = confirm(
-          `Uploaded ${data.filename} to Google Drive Exports.\n\nOpen the file now?`
+          `Uploaded ${data.filename} to ${label} Exports.\n\nOpen the file now?`
         );
         if (open) window.open(data.webViewLink, "_blank");
       } else {
-        alert(`Uploaded ${data.filename} to Google Drive.`);
+        alert(`Uploaded ${data.filename} to ${label}.`);
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Google Drive upload failed");
+      alert(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setLoading(null);
     }
   }
 
-  async function syncSheet() {
-    if (!driveConnected) {
-      alert("Connect Google Workspace in Settings first.");
+  async function syncWorkbook(provider: "google" | "microsoft") {
+    const connected =
+      provider === "google" ? connections.google : connections.microsoft;
+    if (!connected) {
+      alert(
+        provider === "google"
+          ? "Connect Google Workspace in Settings first."
+          : "Connect Microsoft 365 in Settings first."
+      );
       return;
     }
-    setLoading("sync");
+
+    const loadingKey: LoadingKey =
+      provider === "google" ? "google-sync" : "microsoft-sync";
+    setLoading(loadingKey);
     try {
       const res = await fetch("/api/exports/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           kind === "staff"
-            ? { type: "staff" }
-            : { type: "payroll", runId }
+            ? { type: "staff", provider }
+            : { type: "payroll", runId, provider }
         ),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Workspace sync failed");
+
       const link = data.result?.webViewLink;
+      const rowCount = data.result?.rowCount ?? 0;
+      const target =
+        provider === "google" ? "Google Sheets" : "Excel workbook";
       if (link) {
         const open = confirm(
-          `Synced ${data.result.rowCount} rows to Google Sheets.\n\nOpen the spreadsheet?`
+          `Synced ${rowCount} rows to ${target}.\n\nOpen the file now?`
         );
         if (open) window.open(link, "_blank");
       } else {
-        alert(`Synced ${data.result?.rowCount ?? 0} rows to Google Sheets.`);
+        alert(`Synced ${rowCount} rows to ${target}.`);
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : "Workspace sync failed");
@@ -117,35 +160,87 @@ export function ExportActions({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        onClick={download}
-        disabled={loading !== null || (kind === "payroll" && !runId)}
-      >
-        {loading === "download" ? "Exporting…" : "Export CSV"}
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={uploadToDrive}
-        disabled={loading !== null || (kind === "payroll" && !runId)}
-      >
-        {loading === "drive" ? "Uploading…" : "Save file to Drive"}
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={syncSheet}
-        disabled={loading !== null || (kind === "payroll" && !runId)}
-      >
-        {loading === "sync"
-          ? "Syncing…"
-          : kind === "staff"
-            ? "Sync staff Sheet"
-            : "Sync payroll Sheet"}
-      </Button>
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={download}
+          disabled={disabled}
+        >
+          {loading === "download" ? "Exporting…" : "Export CSV"}
+        </Button>
+      </div>
+
+      {connections.google && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted">
+            Google
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => uploadCsv("google")}
+            disabled={disabled}
+          >
+            {loading === "google-drive" ? "Uploading…" : "Save CSV to Drive"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => syncWorkbook("google")}
+            disabled={disabled}
+          >
+            {loading === "google-sync"
+              ? "Syncing…"
+              : kind === "staff"
+                ? "Sync staff Sheet"
+                : "Sync payroll Sheet"}
+          </Button>
+        </div>
+      )}
+
+      {connections.microsoft && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted">
+            Microsoft
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => uploadCsv("microsoft")}
+            disabled={disabled}
+          >
+            {loading === "microsoft-drive" ? "Uploading…" : "Save CSV to OneDrive"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => syncWorkbook("microsoft")}
+            disabled={disabled}
+          >
+            {loading === "microsoft-sync"
+              ? "Syncing…"
+              : kind === "staff"
+                ? "Sync staff workbook"
+                : "Sync payroll workbook"}
+          </Button>
+        </div>
+      )}
+
+      {!hasCloud && (
+        <p className="text-xs text-muted">
+          Connect{" "}
+          <Link href="/settings" className="text-lagoon underline underline-offset-2">
+            Google Workspace or Microsoft 365
+          </Link>{" "}
+          in Settings to upload CSVs or sync live workbooks.
+        </p>
+      )}
     </div>
   );
 }

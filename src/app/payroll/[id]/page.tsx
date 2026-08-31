@@ -11,6 +11,7 @@ import {
 import { PayrollClearanceBar } from "@/components/payroll/payroll-clearance-bar";
 import type { PreflightData } from "@/components/payroll/preflight-panel";
 import { can } from "@/lib/permissions";
+import { useWorkspaceConnections } from "@/components/exports/use-workspace-connections";
 
 function PayrollRunDetailInner() {
   const params = useParams();
@@ -21,7 +22,7 @@ function PayrollRunDetailInner() {
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showAdjustForm, setShowAdjustForm] = useState(false);
-  const [driveConnected, setDriveConnected] = useState(false);
+  const connections = useWorkspaceConnections();
   const [submitNotice, setSubmitNotice] = useState<{
     reviewUrl: string;
     recipients: Array<{
@@ -68,12 +69,6 @@ function PayrollRunDetailInner() {
   useEffect(() => {
     loadRun();
     loadPreflight();
-    fetch("/api/integrations/google-drive")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.connected) setDriveConnected(true);
-      })
-      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
@@ -275,7 +270,7 @@ function PayrollRunDetailInner() {
         loading={loading}
         canApprove={canApprove}
         canSubmit={canSubmit}
-        driveConnected={driveConnected}
+        connections={connections}
         submitNotice={submitNotice}
         showAdjustForm={showAdjustForm}
         initialStep={initialStep}

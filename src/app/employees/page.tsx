@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ExportActions } from "@/components/exports/export-actions";
 import { getGoogleDriveStatus } from "@/lib/google-drive";
+import { getMicrosoftWorkspaceStatus } from "@/lib/microsoft-workspace";
 import { EmployeesPageClient } from "@/components/employees/employees-page-client";
 import { OpenLifecycleQueue } from "@/components/employees/lifecycle-queue";
 import { serializeBigInts } from "@/lib/payroll/config-mapper";
@@ -60,12 +61,19 @@ export default async function EmployeesPage() {
     select: { id: true, name: true },
   });
 
-  let driveConnected = false;
+  let googleConnected = false;
+  let microsoftConnected = false;
   try {
     const driveStatus = await getGoogleDriveStatus(companyId);
-    driveConnected = driveStatus.connected;
+    googleConnected = driveStatus.connected;
   } catch (error) {
     console.error("Drive status skipped:", error);
+  }
+  try {
+    const microsoftStatus = await getMicrosoftWorkspaceStatus(companyId);
+    microsoftConnected = microsoftStatus.connected;
+  } catch (error) {
+    console.error("Microsoft status skipped:", error);
   }
 
   const tableRows = serializeBigInts(employees).map((emp) => ({
@@ -93,7 +101,13 @@ export default async function EmployeesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ExportActions kind="staff" driveConnected={driveConnected} />
+          <ExportActions
+            kind="staff"
+            connections={{
+              google: googleConnected,
+              microsoft: microsoftConnected,
+            }}
+          />
           <Button asChild>
             <Link href="/employees/new">Add employee</Link>
           </Button>

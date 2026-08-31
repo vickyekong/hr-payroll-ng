@@ -74,7 +74,7 @@ const FLOW = [
   {
     step: "4",
     title: "File & export",
-    body: "Remittance packs, department cost, CSV exports, and optional Google Workspace sync — without rebuilding the numbers.",
+    body: "Remittance packs, department cost, CSV exports, and optional Google Workspace or Microsoft 365 sync — without rebuilding the numbers.",
     lottie: "/lottie/approval.json",
   },
 ] as const;

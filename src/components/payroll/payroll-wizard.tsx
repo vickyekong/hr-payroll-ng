@@ -104,7 +104,7 @@ export function PayrollWizard({
   loading,
   canApprove,
   canSubmit,
-  driveConnected,
+  connections,
   submitNotice,
   showAdjustForm,
   initialStep,
@@ -124,7 +124,7 @@ export function PayrollWizard({
   loading: boolean;
   canApprove: boolean;
   canSubmit: boolean;
-  driveConnected: boolean;
+  connections: { google: boolean; microsoft: boolean };
   submitNotice: {
     reviewUrl: string;
     recipients: Array<{
@@ -865,7 +865,7 @@ export function PayrollWizard({
               <ExportActions
                 kind="payroll"
                 runId={run.id}
-                driveConnected={driveConnected}
+                connections={connections}
               />
               <Button variant="outline" size="sm" asChild>
                 <a href={`/api/payroll/runs/${run.id}/filing-pack`} download>

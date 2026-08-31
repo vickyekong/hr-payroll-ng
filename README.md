@@ -59,10 +59,25 @@ The build **requires** these environment variables in your Vercel project (**Set
 | `DATABASE_URL` | `postgresql://user:pass@host/db?sslmode=require` | Supabase, Neon, or Railway Postgres |
 | `NEXTAUTH_SECRET` | output of `openssl rand -base64 32` | **Build fails without this** |
 | `NEXTAUTH_URL` | `https://your-app.vercel.app` | Your production URL (or preview URL for previews) |
+| `RESEND_API_KEY` | from [Resend](https://resend.com) | Email verification, password reset, team invites |
+| `EMAIL_FROM` | `OmniPeople <noreply@yourdomain.com>` | Sender for auth emails (verify domain in Resend) |
+| `TOKEN_ENCRYPTION_KEY` | output of `openssl rand -base64 32` | Recommended — encrypts OAuth + TOTP secrets |
 | `GOOGLE_CLIENT_ID` | from Google Cloud Console | Optional — Workspace Drive/Sheets sync |
 | `GOOGLE_CLIENT_SECRET` | from Google Cloud Console | Optional — pair with client ID |
 | `GOOGLE_DRIVE_FOLDER_ID` | Shared Drive folder ID | Optional HR root folder |
 | `GOOGLE_WORKSPACE_DOMAIN` | `yourcompany.com` | Optional auto-share with domain |
+| `MICROSOFT_CLIENT_ID` | from Azure Portal | Optional — OneDrive / Excel sync |
+| `MICROSOFT_CLIENT_SECRET` | from Azure Portal | Pair with client ID |
+| `MICROSOFT_TENANT_ID` | Azure tenant UUID | Optional — default `common` |
+
+### Integrations checklist (production)
+
+1. Set `TOKEN_ENCRYPTION_KEY` (separate from `NEXTAUTH_SECRET`) before connecting Google or Microsoft in prod.
+2. Add OAuth redirect URIs using your **exact** `NEXTAUTH_URL`:
+   - Google: `{NEXTAUTH_URL}/api/integrations/google-drive/callback`
+   - Microsoft: `{NEXTAUTH_URL}/api/integrations/microsoft-workspace/callback`
+3. Super Admin → **Settings** → connect each workspace once.
+4. HR can **Export CSV**, **Save to Drive/OneDrive**, or **Sync Sheet/workbook** from Employees and Payroll pages when connected.
 
 ### Google Workspace sync
 
@@ -82,7 +97,7 @@ Setup:
 4. Super Admin → **Settings** → **Connect Google Workspace** → **Sync staff + payroll now**
 5. Share the `OmniPeople` folder with HR/Finance in Workspace (or rely on domain sharing)
 
-On Employees / Payroll pages you can also **Sync Sheet** or **Save file to Drive**.
+On Employees / Payroll pages you can **Export CSV**, **Save to Drive/OneDrive**, or **Sync Sheet/workbook** when connected.
 
 ### Microsoft 365 / OneDrive sync
 
@@ -132,7 +147,7 @@ sensitive actions (payroll approval, change requests) and company Settings.
 - **Payslips** — PDF generation with YTD summary (HR / Super Admin)
 - **Leave management** — HR records leave for staff; unpaid leave → payroll deductions
 - **Reports** — remittances, department breakdown, employer cost
-- **Exports** — staff & payroll CSV download, optional Google Drive upload
+- **Exports** — staff & payroll CSV; Google Drive/Sheets and Microsoft OneDrive/Excel when connected
 - **HR Ask / Desk** — policy queries, lifecycle, change-request review
 
 ## Tax Configuration
