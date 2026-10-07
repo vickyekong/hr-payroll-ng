@@ -3,6 +3,8 @@ import { ensureAuthSchema } from "@/lib/ensure-auth-schema";
 import { verifyEmailWithToken } from "@/lib/auth/account";
 import { TenancyError } from "@/lib/tenancy/bootstrap-company";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     await ensureAuthSchema();
