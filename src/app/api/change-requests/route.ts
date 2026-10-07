@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requirePermission, handleApiError } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
         changes: {
           type: body.type,
           employeeId: body.employeeId,
-          payload: body.payload,
+          payload: body.payload as Prisma.InputJsonValue,
         },
       },
     });

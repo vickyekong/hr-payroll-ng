@@ -529,7 +529,7 @@ export async function importAttendanceSheetDays(options: {
         clockOutAt: null,
         workedMinutes,
         lateMinutes: 0,
-        expectedMinutes: day.status === "OFF" ? 0 : expectedMinutes,
+        expectedMinutes,
         penaltyKobo,
         notes: attendanceSheetNote(day.code),
         compiledAt: now,
